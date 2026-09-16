@@ -15,9 +15,8 @@
         <span>Qlib Tutorial</span>
       </a>
       <nav class="nav" data-nav aria-label="主导航">
-        <a href="#modules">课程模块</a>
-        <a href="#workflow">学习路径</a>
-        <a href="#start">开始运行</a>
+        <a href="#modules">课程内容</a>
+        <a href="#start">如何运行</a>
         <a href="https://qlib.readthedocs.io/" target="_blank" rel="noopener noreferrer">Qlib 文档</a>
       </nav>
       <div class="nav-actions">
@@ -32,12 +31,15 @@
     <section class="hero">
       <div class="shell hero-grid">
         <div>
-          <div class="eyebrow">AI 驱动的量化投资 · 实践教程</div>
-          <h1>从市场数据到<br><span class="gradient-text">可验证的策略</span></h1>
-          <p class="lead">在浏览器中完成 Qlib 全流程：探索 A 股数据，构建 Alpha158 因子，训练 LightGBM，并用严格的时间切分完成组合回测。</p>
+          <div class="eyebrow">Qlib 实践教程</div>
+          <h1>完成一次<br><span class="gradient-text">量化研究</span></h1>
+          <p class="lead">在 Colab 中依次完成数据读取、Alpha158 因子、LightGBM 训练、TopK 回测和绩效诊断，无需配置本地环境。</p>
           <div class="hero-actions">
             <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.1/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>在 Google Colab 中运行</span> ↗</a>
             <a class="button button-ghost" data-notebook-download href="downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" download="Qlib量化投资工作流教程_Colab学生版.ipynb">下载 Notebook（.ipynb）</a>
+          </div>
+          <div class="hero-meta" aria-label="教程概况">
+            <span>约 3 小时</span><span>7 个模块</span><span>Python 3.12</span>
           </div>
           <p class="deployment-hint" data-deployment-hint>当前为本地预览，尚未连接 GitHub 仓库；“在 Colab 中运行”会说明如何启用，下载是单独的操作。</p>
         </div>
@@ -57,84 +59,49 @@
       </div>
     </section>
 
-    <section class="stats">
-      <div class="shell stats-grid reveal">
-        <div class="stat"><strong>7</strong><span>个渐进式模块</span></div>
-        <div class="stat"><strong>158</strong><span>个经典量价特征</span></div>
-        <div class="stat"><strong>1-click</strong><span>Colab 云端启动</span></div>
-        <div class="stat"><strong>0</strong><span>学生本地环境配置</span></div>
-      </div>
-    </section>
-
     <section class="section section-alt" id="modules">
       <div class="shell">
         <div class="section-heading reveal">
-          <div class="eyebrow">Course outline</div>
-          <h2>一条完整的量化研究链路</h2>
-          <p>每个模块既讲解 Qlib 的核心抽象，也保留可动手完成的练习与结果分析。</p>
+          <div class="eyebrow">课程内容</div>
+          <h2>从数据到策略评价</h2>
+          <p>按顺序运行 Notebook，完成下面 7 个模块。</p>
         </div>
-        <div class="module-grid">
-          <article class="module-card reveal" style="--module-color:#38bdf8"><div class="module-meta"><span class="module-number">1</span><span>15 MIN</span></div><h3>云端环境准备</h3><p>安装固定版本依赖，下载并检查 A 股教学数据。</p><div class="tag">Colab · Qlib Data</div></article>
-          <article class="module-card reveal" style="--module-color:#2dd4bf"><div class="module-meta"><span class="module-number">2</span><span>10 MIN</span></div><h3>框架初始化</h3><p>理解 provider、region、股票池与基准指数的关系。</p><div class="tag">REG_CN · CSI300</div></article>
-          <article class="module-card reveal" style="--module-color:#fbbf24"><div class="module-meta"><span class="module-number">3</span><span>30 MIN</span></div><h3>数据探索</h3><p>查询成分股、原始特征与 Qlib 表达式特征。</p><div class="tag">D.features · Expressions</div></article>
-          <article class="module-card reveal" style="--module-color:#a78bfa"><div class="module-meta"><span class="module-number">4</span><span>35 MIN</span></div><h3>数据与因子</h3><p>使用 Alpha158 构建特征、标签和无泄漏时间切分。</p><div class="tag">DataHandler · DatasetH</div></article>
-          <article class="module-card reveal" style="--module-color:#fb7185"><div class="module-meta"><span class="module-number">5</span><span>40 MIN</span></div><h3>模型训练</h3><p>训练 LightGBM，记录参数、模型与实验标识。</p><div class="tag">LGBModel · Recorder</div></article>
-          <article class="module-card reveal" style="--module-color:#34d399"><div class="module-meta"><span class="module-number">6</span><span>40 MIN</span></div><h3>信号与回测</h3><p>生成预测信号，运行 TopK 换仓策略和交易成本模型。</p><div class="tag">SignalRecord · PortAna</div></article>
-          <article class="module-card reveal" style="--module-color:#60a5fa"><div class="module-meta"><span class="module-number">7</span><span>60 MIN</span></div><h3>绩效诊断</h3><p>分析收益、回撤、风险、IC、分组收益和预测自相关。</p><div class="tag">Risk · IC · Diagnostics</div></article>
+        <div class="module-list">
+          <article class="module-item reveal"><span class="module-number">01</span><div><h3>准备环境</h3><p>安装依赖并下载 A 股教学数据。</p></div><span class="module-time">15 min</span></article>
+          <article class="module-item reveal"><span class="module-number">02</span><div><h3>初始化 Qlib</h3><p>设置中国市场、股票池与基准。</p></div><span class="module-time">10 min</span></article>
+          <article class="module-item reveal"><span class="module-number">03</span><div><h3>探索数据</h3><p>查询成分股、行情与表达式特征。</p></div><span class="module-time">30 min</span></article>
+          <article class="module-item reveal"><span class="module-number">04</span><div><h3>构建因子</h3><p>生成 Alpha158 特征并划分数据集。</p></div><span class="module-time">35 min</span></article>
+          <article class="module-item reveal"><span class="module-number">05</span><div><h3>训练模型</h3><p>用 LightGBM 预测未来收益。</p></div><span class="module-time">40 min</span></article>
+          <article class="module-item reveal"><span class="module-number">06</span><div><h3>信号与回测</h3><p>运行 TopK 策略并计入交易成本。</p></div><span class="module-time">40 min</span></article>
+          <article class="module-item reveal"><span class="module-number">07</span><div><h3>绩效诊断</h3><p>检查收益、回撤、风险和 IC。</p></div><span class="module-time">60 min</span></article>
         </div>
       </div>
     </section>
 
-    <section class="section" id="workflow">
-      <div class="shell">
+    <section class="section" id="start">
+      <div class="shell start-layout">
         <div class="section-heading reveal">
-          <div class="eyebrow">Learning workflow</div>
-          <h2>不仅“跑通”，还要理解每一步</h2>
-          <p>Notebook 使用训练、验证、测试的顺序切分，把数据泄漏防范与回测严谨性放在同一条主线上。</p>
+          <div class="eyebrow">如何运行</div>
+          <h2>三步开始实验</h2>
+          <p>只需要一个可以使用 Colab 的 Google 账号。</p>
         </div>
-        <div class="workflow reveal">
-          <div class="workflow-step"><strong>01 数据</strong><span>成分股与行情特征</span></div>
-          <div class="workflow-step"><strong>02 因子</strong><span>Alpha158 特征工程</span></div>
-          <div class="workflow-step"><strong>03 模型</strong><span>LightGBM 预测收益</span></div>
-          <div class="workflow-step"><strong>04 组合</strong><span>TopK 换仓策略</span></div>
-          <div class="workflow-step"><strong>05 评价</strong><span>收益、风险与 IC</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-alt" id="start">
-      <div class="shell requirements-grid">
-        <div class="checklist reveal">
-          <div class="eyebrow">Before you start</div>
-          <h2>开始前准备</h2>
-          <ul>
-            <li>一个可使用 Colab 的 Google 账号</li>
-            <li>基本的 Python 与 pandas 阅读能力</li>
-            <li>首次运行预留约 5–15 分钟准备环境</li>
-            <li>建议按顺序执行所有单元格</li>
-          </ul>
-        </div>
-        <div class="run-card reveal">
-          <div class="eyebrow">Ready to run</div>
-          <h3>无需在本地安装 Qlib</h3>
-          <p>点击按钮后，Colab 会从 GitHub 打开学生版 Notebook。首个单元格负责安装依赖和下载数据，辅助分析函数已经内嵌，因此不依赖额外本地文件。</p>
-          <div class="hero-actions">
-            <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.1/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>打开 Colab Notebook</span> ↗</a>
-            <a class="button button-ghost" data-notebook-download href="downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" download="Qlib量化投资工作流教程_Colab学生版.ipynb">下载 Notebook（.ipynb）</a>
-            <a class="text-link" data-github-link href="#">浏览课程仓库</a>
+        <ol class="start-steps reveal">
+          <li><span>1</span><div><strong>打开 Notebook</strong><p>点击下方按钮进入 Colab。</p></div></li>
+          <li><span>2</span><div><strong>运行全部</strong><p>选择“运行时 → 全部运行”。</p></div></li>
+          <li><span>3</span><div><strong>完成练习</strong><p>按顺序查看结果并回答问题。</p></div></li>
+        </ol>
+        <div class="start-actions reveal">
+          <div>
+            <strong>首次准备约 5–15 分钟</strong>
+            <p>环境和数据会自动下载；Notebook 固定使用 Python 3.12 运行时。</p>
           </div>
-          <div class="note">免费 Colab 的计算资源和运行时长并不保证固定；教学结果可能因运行时或底层库更新出现轻微差异。</div>
+          <div class="hero-actions">
+            <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.1/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>在 Colab 中运行</span> ↗</a>
+            <a class="text-link" data-github-link href="#">查看 GitHub 仓库</a>
+          </div>
         </div>
       </div>
     </section>
-
-    <div class="shell">
-      <section class="cta reveal">
-        <h2>把研究流程变成可复现的实验</h2>
-        <p>从第一个数据查询开始，完成一次有时间边界、有交易成本、有风险诊断的量化研究实践。</p>
-        <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.1/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>立即开始教程</span> ↗</a>
-      </section>
-    </div>
   </main>
 
   <footer class="site-footer">
