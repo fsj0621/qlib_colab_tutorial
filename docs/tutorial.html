@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Qlib 量化投资工作流教程讲解模式：按模块讲授数据、因子、模型、回测与绩效诊断。">
+  <title>Qlib 教程 · 讲解模式</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tutorial.css">
+</head>
+<body class="tutorial-body">
+  <button class="toc-toggle" type="button" data-toc-toggle aria-label="打开模块目录" aria-expanded="false">☰ <span>模块目录</span></button>
+
+  <aside class="course-sidebar" data-course-sidebar>
+    <div class="course-brand">
+      <a class="brand" href="index.html" aria-label="返回课程首页">
+        <span class="brand-mark">Q</span>
+        <span><strong>Qlib Tutorial</strong><small>量化研究工作流</small></span>
+      </a>
+    </div>
+
+    <nav class="course-nav" aria-label="课程模块">
+      <div class="nav-label">导航</div>
+      <a class="course-home" href="index.html"><span class="nav-icon">⌂</span><span>课程首页</span></a>
+
+      <div class="nav-label nav-label-modules">模块</div>
+      <a class="module-link is-active" href="#module-1" data-module-link="module-1"><span class="nav-number">1</span><span class="nav-title">环境与数据准备</span><span class="nav-time">15 min</span></a>
+      <a class="module-link" href="#module-2" data-module-link="module-2"><span class="nav-number">2</span><span class="nav-title">初始化 Qlib</span><span class="nav-time">10 min</span></a>
+      <a class="module-link" href="#module-3" data-module-link="module-3"><span class="nav-number">3</span><span class="nav-title">行情数据探索</span><span class="nav-time">30 min</span></a>
+      <a class="module-link" href="#module-4" data-module-link="module-4"><span class="nav-number">4</span><span class="nav-title">Alpha158 因子</span><span class="nav-time">35 min</span></a>
+      <a class="module-link" href="#module-5" data-module-link="module-5"><span class="nav-number">5</span><span class="nav-title">LightGBM 训练</span><span class="nav-time">40 min</span></a>
+      <a class="module-link" href="#module-6" data-module-link="module-6"><span class="nav-number">6</span><span class="nav-title">TopK 策略回测</span><span class="nav-time">40 min</span></a>
+      <a class="module-link" href="#module-7" data-module-link="module-7"><span class="nav-number">7</span><span class="nav-title">绩效与 IC 诊断</span><span class="nav-time">60 min</span></a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-row" type="button" data-theme-toggle><span>◐</span><span>切换明暗主题</span></button>
+      <span>Colab 学生版 · v1.0.2</span>
+    </div>
+  </aside>
+
+  <main class="course-main">
+    <header class="course-topbar">
+      <div><span class="mode-dot"></span>讲解模式</div>
+      <div class="topbar-actions">
+        <a class="text-link" data-notebook-download href="downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" download="Qlib量化投资工作流教程_Colab学生版.ipynb">下载 Notebook</a>
+        <a class="button button-primary button-small" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.2/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb">打开 Colab ↗</a>
+      </div>
+    </header>
+
+    <div class="course-content">
+      <section class="lesson" id="module-1" data-module-section>
+        <div class="lesson-heading">
+          <span class="lesson-number">1</span>
+          <div><div class="lesson-kicker">Module 1</div><h1>环境与数据准备</h1><p>让所有学生获得一致、可运行的 Python 3.12、Qlib 和 A 股数据环境。</p></div>
+        </div>
+        <div class="lesson-meta"><span>◷ 15 min</span><span>Notebook：第 1 节</span></div>
+
+        <div class="objective-box">
+          <h2>学习目标</h2>
+          <ul><li>理解 Colab 临时运行时与本地环境的区别</li><li>确认 Qlib 0.9.7 与 Python 3.12 的版本约束</li><li>识别数据目录和交易日历检查的作用</li></ul>
+        </div>
+
+        <div class="teaching-grid">
+          <article><h2>讲解顺序</h2><ol><li>说明为什么固定 Colab 运行时版本。</li><li>运行环境准备单元格，观察依赖安装日志。</li><li>解释 464 MB 数据包解压后包含的目录。</li><li>确认最后出现“环境准备完成 ✓”。</li></ol></article>
+          <article><h2>本节检查</h2><ul class="check-list"><li>Python 显示为 3.12.x</li><li>数据目录指向 <code>/content/qlib_data/cn_data</code></li><li><code>calendars/day.txt</code> 已存在</li></ul></article>
+        </div>
+        <aside class="teaching-note"><strong>讲课提醒</strong><p>首次运行时间主要消耗在依赖安装和数据下载。不要让学生在这一阶段反复重启运行时。</p></aside>
+        <div class="lesson-next"><span>下一节</span><a href="#module-2">初始化 Qlib →</a></div>
+      </section>
+
+      <section class="lesson" id="module-2" data-module-section>
+        <div class="lesson-heading"><span class="lesson-number">2</span><div><div class="lesson-kicker">Module 2</div><h1>初始化 Qlib</h1><p>连接数据目录，设置中国市场，并建立可复现的实验记录环境。</p></div></div>
+        <div class="lesson-meta"><span>◷ 10 min</span><span>Notebook：第 2 节</span></div>
+        <div class="objective-box"><h2>学习目标</h2><ul><li>理解 <code>provider_uri</code>、<code>REG_CN</code> 与股票池的关系</li><li>知道 <code>qlib.init()</code> 为什么必须先于数据访问</li><li>理解实验记录为何使用 SQLite 后端</li></ul></div>
+        <div class="teaching-grid">
+          <article><h2>三个关键参数</h2><dl class="term-list"><div><dt>provider_uri</dt><dd>Qlib 二进制行情数据的位置。</dd></div><div><dt>region</dt><dd>市场规则预设，本教程使用中国市场。</dd></div><div><dt>exp_manager</dt><dd>模型参数、指标和文件的实验记录器。</dd></div></dl></article>
+          <article><h2>本节检查</h2><ul class="check-list"><li>初始化日志显示数据路径</li><li>实验数据库为 <code>qlib_mlflow.db</code></li><li>股票池和基准均为沪深 300</li></ul></article>
+        </div>
+        <aside class="teaching-note warning"><strong>常见错误</strong><p>若看到 MLflow 文件后端处于维护模式，说明打开的仍是旧版 Notebook；新版会明确使用 SQLite。</p></aside>
+        <div class="lesson-next"><span>下一节</span><a href="#module-3">行情数据探索 →</a></div>
+      </section>
+
+      <section class="lesson" id="module-3" data-module-section>
+        <div class="lesson-heading"><span class="lesson-number">3</span><div><div class="lesson-kicker">Module 3</div><h1>行情数据探索</h1><p>通过 Qlib 的统一数据接口，查询成分股、原始字段和表达式特征。</p></div></div>
+        <div class="lesson-meta"><span>◷ 30 min</span><span>Notebook：第 3 节</span></div>
+        <div class="objective-box"><h2>学习目标</h2><ul><li>使用 <code>D.instruments()</code> 获取股票池</li><li>使用 <code>D.features()</code> 查询量价字段</li><li>区分原始特征与表达式派生特征</li></ul></div>
+        <div class="teaching-grid">
+          <article><h2>讲解顺序</h2><ol><li>先查看沪深 300 在不同日期的成分变化。</li><li>读取开高低收、成交量等原始字段。</li><li>用 Ref、Mean 等算子构造时序特征。</li><li>完成股票筛选练习。</li></ol></article>
+          <article><h2>建议提问</h2><ul class="question-list"><li>为什么股票池不能使用今天的成分回看历史？</li><li><code>$close</code> 与 <code>Ref($close, 1)</code> 分别代表什么？</li><li>缺失值可能来自哪些交易情形？</li></ul></article>
+        </div>
+        <aside class="teaching-note"><strong>核心概念</strong><p>Qlib 表达式把特征定义与数据读取合并在一起，计算发生在统一的数据接口之后。</p></aside>
+        <div class="lesson-next"><span>下一节</span><a href="#module-4">Alpha158 因子 →</a></div>
+      </section>
+
+      <section class="lesson" id="module-4" data-module-section>
+        <div class="lesson-heading"><span class="lesson-number">4</span><div><div class="lesson-kicker">Module 4</div><h1>Alpha158 因子</h1><p>把行情数据转换成模型可学习的特征、标签和无泄漏时间切分。</p></div></div>
+        <div class="lesson-meta"><span>◷ 35 min</span><span>Notebook：第 4 节</span></div>
+        <div class="objective-box"><h2>学习目标</h2><ul><li>理解 DataHandler、Alpha158 与 DatasetH 的分工</li><li>区分 raw、infer、learn 三种数据模式</li><li>检查训练、验证、测试区间是否按时间顺序排列</li></ul></div>
+        <div class="teaching-grid">
+          <article><h2>数据处理链</h2><div class="flow-line"><span>行情</span><b>→</b><span>Alpha158</span><b>→</b><span>处理器</span><b>→</b><span>DatasetH</span></div><p class="support-copy">重点展示特征标准化、标签构造和样本过滤发生在哪个阶段。</p></article>
+          <article><h2>本节检查</h2><ul class="check-list"><li>特征和标签的索引均为“日期 × 股票”</li><li>训练期早于验证期，验证期早于测试期</li><li>标签没有使用预测时点之后可见的信息</li></ul></article>
+        </div>
+        <aside class="teaching-note warning"><strong>讲课重点</strong><p>模型表现再好，也不能弥补时间穿越。先检查切分边界，再讨论算法精度。</p></aside>
+        <div class="lesson-next"><span>下一节</span><a href="#module-5">LightGBM 训练 →</a></div>
+      </section>
+
+      <section class="lesson" id="module-5" data-module-section>
+        <div class="lesson-heading"><span class="lesson-number">5</span><div><div class="lesson-kicker">Module 5</div><h1>LightGBM 训练</h1><p>用统一任务配置训练收益预测模型，并通过 Recorder 保存实验结果。</p></div></div>
+        <div class="lesson-meta"><span>◷ 40 min</span><span>Notebook：第 5 节</span></div>
+        <div class="objective-box"><h2>学习目标</h2><ul><li>读懂模型、数据集和训练参数组成的 task 配置</li><li>理解验证集与早停的作用</li><li>使用 Recorder 记录参数、模型和实验标识</li></ul></div>
+        <div class="teaching-grid">
+          <article><h2>讲解顺序</h2><ol><li>拆解 LightGBM 参数与 DatasetH 配置。</li><li>进入 <code>R.start("train_model")</code> 实验上下文。</li><li>训练模型并保存 <code>trained_model</code>。</li><li>记录并解释 recorder ID。</li></ol></article>
+          <article><h2>观察结果</h2><ul class="check-list"><li>训练日志正常收敛</li><li>验证集用于选择迭代轮数</li><li>模型文件能从 Recorder 重新加载</li></ul></article>
+        </div>
+        <aside class="teaching-note"><strong>讨论问题</strong><p>如果训练误差持续下降、验证误差开始上升，继续增加树的数量会发生什么？</p></aside>
+        <div class="lesson-next"><span>下一节</span><a href="#module-6">TopK 策略回测 →</a></div>
+      </section>
+
+      <section class="lesson" id="module-6" data-module-section>
+        <div class="lesson-heading"><span class="lesson-number">6</span><div><div class="lesson-kicker">Module 6</div><h1>TopK 策略回测</h1><p>把横截面预测分数转换成持仓，并在交易成本约束下模拟组合表现。</p></div></div>
+        <div class="lesson-meta"><span>◷ 40 min</span><span>Notebook：第 6 节</span></div>
+        <div class="objective-box"><h2>学习目标</h2><ul><li>理解预测信号、选股策略和执行器的连接方式</li><li>解释 TopK 与换仓数量参数</li><li>识别手续费、滑点和涨跌停约束对结果的影响</li></ul></div>
+        <div class="teaching-grid">
+          <article><h2>回测链路</h2><div class="flow-line flow-wrap"><span>预测分数</span><b>→</b><span>TopK 选股</span><b>→</b><span>订单执行</span><b>→</b><span>账户净值</span></div><p class="support-copy"><code>SignalRecord</code> 生成信号，<code>PortAnaRecord</code> 生成组合分析结果。</p></article>
+          <article><h2>本节检查</h2><ul class="check-list"><li>回测区间只覆盖测试集</li><li>基准指数与股票池口径一致</li><li>交易成本已纳入报告</li></ul></article>
+        </div>
+        <aside class="teaching-note warning"><strong>常见误区</strong><p>预测分数不是收益率；它只负责排序。真正的组合收益还取决于持仓规则、成交限制和交易成本。</p></aside>
+        <div class="lesson-next"><span>下一节</span><a href="#module-7">绩效与 IC 诊断 →</a></div>
+      </section>
+
+      <section class="lesson" id="module-7" data-module-section>
+        <div class="lesson-heading"><span class="lesson-number">7</span><div><div class="lesson-kicker">Module 7</div><h1>绩效与 IC 诊断</h1><p>从收益、风险、换手和预测质量四个角度判断策略是否可信。</p></div></div>
+        <div class="lesson-meta"><span>◷ 60 min</span><span>Notebook：第 7 节</span></div>
+        <div class="objective-box"><h2>学习目标</h2><ul><li>解读累计收益、超额收益、最大回撤与换手率</li><li>比较年化收益、波动率和信息比率</li><li>使用 IC、分组收益与预测自相关诊断模型</li></ul></div>
+        <div class="metric-grid">
+          <article><strong>Return</strong><span>策略最终赚了多少</span></article><article><strong>Max Drawdown</strong><span>最差阶段损失多大</span></article><article><strong>IC / Rank IC</strong><span>预测与未来收益是否一致</span></article><article><strong>Turnover</strong><span>收益是否依赖高频换仓</span></article>
+        </div>
+        <div class="teaching-grid">
+          <article><h2>建议讲解顺序</h2><ol><li>先看净值和超额收益是否稳定。</li><li>再看回撤、波动率和信息比率。</li><li>检查分组收益是否近似单调。</li><li>结合 IC 和预测自相关解释信号质量。</li></ol></article>
+          <article><h2>课后作业</h2><ul class="question-list"><li>计算累计超额收益率。</li><li>计算含成本的超额收益最大回撤。</li><li>用自己的语言解释六类模型诊断图。</li></ul></article>
+        </div>
+        <aside class="teaching-note"><strong>结束判断</strong><p>一个可用策略需要同时回答：收益来自哪里、风险有多大、成本后是否仍成立、预测关系是否稳定。</p></aside>
+        <div class="course-finish">
+          <div><span class="lesson-kicker">完成课程</span><h2>回到 Notebook 完成练习</h2></div>
+          <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.2/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb">打开 Colab ↗</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="sidebar-scrim" data-sidebar-scrim></div>
+  <script src="site-config.js"></script>
+  <script src="app.js"></script>
+  <script src="tutorial.js"></script>
+</body>
+</html>
