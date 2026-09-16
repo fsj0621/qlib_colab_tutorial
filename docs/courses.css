@@ -1,0 +1,32 @@
+.catalog-main { min-height: calc(100vh - 140px); }
+.catalog-intro { padding: 84px 0 54px; border-bottom: 1px solid var(--line); }
+.catalog-intro h1 { margin: 14px 0 16px; font-size: clamp(46px, 7vw, 76px); }
+.catalog-intro p { max-width: 620px; margin: 0; color: var(--muted); font-size: 19px; }
+.catalog-section { padding: 52px 0 88px; }
+.catalog-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; margin-bottom: 22px; }
+.catalog-heading h2 { margin: 0; font-size: 28px; letter-spacing: -.03em; }
+.catalog-heading span { color: var(--muted); font-size: 13px; }
+.course-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.course-card { padding: 28px; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 20px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); box-shadow: 0 10px 34px rgba(0,0,0,.06); }
+.course-card-mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 17px; background: linear-gradient(145deg, var(--blue), var(--cyan)); color: #042033; font-size: 22px; font-weight: 900; }
+.course-card-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.course-status { padding: 4px 9px; border-radius: 999px; background: rgba(45,212,191,.11); color: var(--cyan); font-size: 12px; font-weight: 800; }
+.course-card h3 { margin: 12px 0 8px; font-size: 25px; letter-spacing: -.03em; }
+.course-card p { margin: 0; color: var(--muted); }
+.course-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.course-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.course-actions .button { min-height: 42px; padding: 0 16px; border-radius: 12px; font-size: 14px; }
+.catalog-loading, .catalog-error { grid-column: 1 / -1; padding: 32px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--muted); }
+.catalog-error { border-left: 4px solid #fb7185; }
+
+@media (max-width: 760px) {
+  .catalog-intro { padding-top: 62px; }
+  .course-grid { grid-template-columns: 1fr; }
+  .course-card { grid-template-columns: 48px minmax(0, 1fr); padding: 22px; gap: 15px; }
+  .course-card-mark { width: 48px; height: 48px; border-radius: 14px; font-size: 18px; }
+}
+
+@media (max-width: 440px) {
+  .course-card { grid-template-columns: 1fr; }
+  .course-card-top { align-items: flex-start; flex-direction: column-reverse; }
+}

@@ -1,0 +1,275 @@
+{
+  "slug": "qlib",
+  "mark": "Q",
+  "title": "Qlib Tutorial",
+  "subtitle": "量化研究工作流",
+  "pageTitle": "Qlib 教程 · 讲解模式",
+  "version": "v1.0.2",
+  "landingPage": "index.html",
+  "owner": "fsj0621",
+  "repo": "qlib_colab_tutorial",
+  "release": "v1.0.2",
+  "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
+  "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
+  "modules": [
+    {
+      "number": 1,
+      "title": "环境与数据准备",
+      "shortTitle": "环境与数据准备",
+      "duration": "15 min",
+      "notebookSection": "第 1 节",
+      "summary": "让所有学生获得一致、可运行的 Python 3.12、Qlib 和 A 股数据环境。",
+      "objectives": [
+        "理解 Colab 临时运行时与本地环境的区别",
+        "确认 Qlib 0.9.7 与 Python 3.12 的版本约束",
+        "识别数据目录和交易日历检查的作用"
+      ],
+      "primary": {
+        "title": "讲解顺序",
+        "style": "ordered",
+        "items": [
+          "说明为什么固定 Colab 运行时版本。",
+          "运行环境准备单元格，观察依赖安装日志。",
+          "解释 464 MB 数据包解压后包含的目录。",
+          "确认最后出现“环境准备完成 ✓”。"
+        ]
+      },
+      "secondary": {
+        "title": "本节检查",
+        "style": "check",
+        "items": [
+          "Python 显示为 3.12.x",
+          "数据目录指向 `/content/qlib_data/cn_data`",
+          "`calendars/day.txt` 已存在"
+        ]
+      },
+      "note": {
+        "title": "讲课提醒",
+        "text": "首次运行时间主要消耗在依赖安装和数据下载。不要让学生在这一阶段反复重启运行时。"
+      }
+    },
+    {
+      "number": 2,
+      "title": "初始化 Qlib",
+      "shortTitle": "初始化 Qlib",
+      "duration": "10 min",
+      "notebookSection": "第 2 节",
+      "summary": "连接数据目录，设置中国市场，并建立可复现的实验记录环境。",
+      "objectives": [
+        "理解 `provider_uri`、`REG_CN` 与股票池的关系",
+        "知道 `qlib.init()` 为什么必须先于数据访问",
+        "理解实验记录为何使用 SQLite 后端"
+      ],
+      "primary": {
+        "title": "三个关键参数",
+        "style": "bullet",
+        "items": [
+          "`provider_uri`：Qlib 二进制行情数据的位置。",
+          "`region`：市场规则预设，本教程使用中国市场。",
+          "`exp_manager`：模型参数、指标和文件的实验记录器。"
+        ]
+      },
+      "secondary": {
+        "title": "本节检查",
+        "style": "check",
+        "items": [
+          "初始化日志显示数据路径",
+          "实验数据库为 `qlib_mlflow.db`",
+          "股票池和基准均为沪深 300"
+        ]
+      },
+      "note": {
+        "tone": "warning",
+        "title": "常见错误",
+        "text": "若看到 MLflow 文件后端处于维护模式，说明打开的仍是旧版 Notebook；新版会明确使用 SQLite。"
+      }
+    },
+    {
+      "number": 3,
+      "title": "行情数据探索",
+      "shortTitle": "行情数据探索",
+      "duration": "30 min",
+      "notebookSection": "第 3 节",
+      "summary": "通过 Qlib 的统一数据接口，查询成分股、原始字段和表达式特征。",
+      "objectives": [
+        "使用 `D.instruments()` 获取股票池",
+        "使用 `D.features()` 查询量价字段",
+        "区分原始特征与表达式派生特征"
+      ],
+      "primary": {
+        "title": "讲解顺序",
+        "style": "ordered",
+        "items": [
+          "先查看沪深 300 在不同日期的成分变化。",
+          "读取开高低收、成交量等原始字段。",
+          "用 Ref、Mean 等算子构造时序特征。",
+          "完成股票筛选练习。"
+        ]
+      },
+      "secondary": {
+        "title": "建议提问",
+        "style": "question",
+        "items": [
+          "为什么股票池不能使用今天的成分回看历史？",
+          "`$close` 与 `Ref($close, 1)` 分别代表什么？",
+          "缺失值可能来自哪些交易情形？"
+        ]
+      },
+      "note": {
+        "title": "核心概念",
+        "text": "Qlib 表达式把特征定义与数据读取合并在一起，计算发生在统一的数据接口之后。"
+      }
+    },
+    {
+      "number": 4,
+      "title": "Alpha158 因子",
+      "shortTitle": "Alpha158 因子",
+      "duration": "35 min",
+      "notebookSection": "第 4 节",
+      "summary": "把行情数据转换成模型可学习的特征、标签和无泄漏时间切分。",
+      "objectives": [
+        "理解 DataHandler、Alpha158 与 DatasetH 的分工",
+        "区分 raw、infer、learn 三种数据模式",
+        "检查训练、验证、测试区间是否按时间顺序排列"
+      ],
+      "primary": {
+        "title": "数据处理链",
+        "style": "ordered",
+        "items": [
+          "从行情字段生成 Alpha158 特征。",
+          "在 DataHandler 中完成标准化和样本过滤。",
+          "在 DatasetH 中定义训练、验证和测试区间。"
+        ]
+      },
+      "secondary": {
+        "title": "本节检查",
+        "style": "check",
+        "items": [
+          "特征和标签的索引均为“日期 × 股票”",
+          "训练期早于验证期，验证期早于测试期",
+          "标签没有使用预测时点之后可见的信息"
+        ]
+      },
+      "note": {
+        "tone": "warning",
+        "title": "讲课重点",
+        "text": "模型表现再好，也不能弥补时间穿越。先检查切分边界，再讨论算法精度。"
+      }
+    },
+    {
+      "number": 5,
+      "title": "LightGBM 训练",
+      "shortTitle": "LightGBM 训练",
+      "duration": "40 min",
+      "notebookSection": "第 5 节",
+      "summary": "用统一任务配置训练收益预测模型，并通过 Recorder 保存实验结果。",
+      "objectives": [
+        "读懂模型、数据集和训练参数组成的 task 配置",
+        "理解验证集与早停的作用",
+        "使用 Recorder 记录参数、模型和实验标识"
+      ],
+      "primary": {
+        "title": "讲解顺序",
+        "style": "ordered",
+        "items": [
+          "拆解 LightGBM 参数与 DatasetH 配置。",
+          "进入 `R.start(\"train_model\")` 实验上下文。",
+          "训练模型并保存 `trained_model`。",
+          "记录并解释 recorder ID。"
+        ]
+      },
+      "secondary": {
+        "title": "观察结果",
+        "style": "check",
+        "items": [
+          "训练日志正常收敛",
+          "验证集用于选择迭代轮数",
+          "模型文件能从 Recorder 重新加载"
+        ]
+      },
+      "note": {
+        "title": "讨论问题",
+        "text": "如果训练误差持续下降、验证误差开始上升，继续增加树的数量会发生什么？"
+      }
+    },
+    {
+      "number": 6,
+      "title": "TopK 策略回测",
+      "shortTitle": "TopK 策略回测",
+      "duration": "40 min",
+      "notebookSection": "第 6 节",
+      "summary": "把横截面预测分数转换成持仓，并在交易成本约束下模拟组合表现。",
+      "objectives": [
+        "理解预测信号、选股策略和执行器的连接方式",
+        "解释 TopK 与换仓数量参数",
+        "识别手续费、滑点和涨跌停约束对结果的影响"
+      ],
+      "primary": {
+        "title": "回测链路",
+        "style": "ordered",
+        "items": [
+          "`SignalRecord` 生成横截面预测分数。",
+          "TopK 策略把分数转换为买卖目标。",
+          "执行器模拟成交并更新账户净值。",
+          "`PortAnaRecord` 输出组合分析结果。"
+        ]
+      },
+      "secondary": {
+        "title": "本节检查",
+        "style": "check",
+        "items": [
+          "回测区间只覆盖测试集",
+          "基准指数与股票池口径一致",
+          "交易成本已纳入报告"
+        ]
+      },
+      "note": {
+        "tone": "warning",
+        "title": "常见误区",
+        "text": "预测分数不是收益率；它只负责排序。真正的组合收益还取决于持仓规则、成交限制和交易成本。"
+      }
+    },
+    {
+      "number": 7,
+      "title": "绩效与 IC 诊断",
+      "shortTitle": "绩效与 IC 诊断",
+      "duration": "60 min",
+      "notebookSection": "第 7 节",
+      "summary": "从收益、风险、换手和预测质量四个角度判断策略是否可信。",
+      "objectives": [
+        "解读累计收益、超额收益、最大回撤与换手率",
+        "比较年化收益、波动率和信息比率",
+        "使用 IC、分组收益与预测自相关诊断模型"
+      ],
+      "metrics": [
+        { "name": "Return", "description": "策略最终赚了多少" },
+        { "name": "Max Drawdown", "description": "最差阶段损失多大" },
+        { "name": "IC / Rank IC", "description": "预测与未来收益是否一致" },
+        { "name": "Turnover", "description": "收益是否依赖高频换仓" }
+      ],
+      "primary": {
+        "title": "建议讲解顺序",
+        "style": "ordered",
+        "items": [
+          "先看净值和超额收益是否稳定。",
+          "再看回撤、波动率和信息比率。",
+          "检查分组收益是否近似单调。",
+          "结合 IC 和预测自相关解释信号质量。"
+        ]
+      },
+      "secondary": {
+        "title": "课后作业",
+        "style": "question",
+        "items": [
+          "计算累计超额收益率。",
+          "计算含成本的超额收益最大回撤。",
+          "用自己的语言解释六类模型诊断图。"
+        ]
+      },
+      "note": {
+        "title": "结束判断",
+        "text": "一个可用策略需要同时回答：收益来自哪里、风险有多大、成本后是否仍成立、预测关系是否稳定。"
+      }
+    }
+  ]
+}

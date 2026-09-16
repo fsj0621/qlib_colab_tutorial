@@ -79,6 +79,12 @@
 .topbar-actions { display: flex; align-items: center; gap: 18px; }
 .button-small { min-height: 40px; padding: 0 16px; border-radius: 12px; font-size: 14px; }
 .course-content { width: min(980px, calc(100% - 72px)); margin: 0 auto; }
+.nav-loading { padding: 12px; color: var(--muted); font-size: 13px; }
+.tutorial-loading, .tutorial-error { margin-top: 70px; padding: 30px; display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); color: var(--muted); }
+.tutorial-loading strong, .tutorial-error strong { color: var(--text); font-size: 20px; }
+.tutorial-error { border-left: 4px solid #fb7185; }
+.tutorial-error p { margin: 0 0 12px; }
+.tutorial-error .button { justify-self: start; }
 
 .lesson { min-height: 100vh; padding: 82px 0 86px; scroll-margin-top: 66px; border-bottom: 1px solid var(--line); }
 .lesson:last-child { border-bottom: 0; }
@@ -124,6 +130,7 @@ code { padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; back
 .metric-grid span { color: var(--muted); font-size: 13px; }
 .course-finish { margin-top: 34px; padding: 28px; display: flex; justify-content: space-between; align-items: center; gap: 22px; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(130deg, rgba(56,189,248,.12), rgba(45,212,191,.1)); }
 .course-finish h2 { margin: 5px 0 0; font-size: 24px; }
+.course-content > .course-finish { margin-bottom: 86px; }
 
 .toc-toggle { display: none; }
 .sidebar-scrim { display: none; }

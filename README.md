@@ -1,11 +1,11 @@
-# Qlib Colab 教程网站
+# 量化投资 Colab 教程网站
 
-这是由现有 `Qlib基础教程.ipynb` 转换得到的发布原型，包含：
+这是一个可承载多门课程的静态教程网站。当前已发布 Qlib 量化投资工作流教程，包含：
 
-- 零构建依赖的静态教程首页；
+- 课程目录、课程首页与配置驱动的讲解模式；
 - 清除大型输出后的 Colab 学生版 Notebook；
 - 内嵌回测辅助函数，Notebook 可作为单文件运行；
-- GitHub Pages 与 Colab 链接自动推断；
+- GitHub Pages、Colab 与同源下载链接；
 - 固定版本的 Colab 依赖清单。
 
 ## 本地预览
@@ -16,7 +16,23 @@
 python -m http.server 8000 --directory qlib_colab_tutorial
 ```
 
-然后访问 `http://localhost:8000/docs/`。本地预览时，“在 Colab 中运行”会提示先配置 GitHub 仓库，“下载 Notebook（.ipynb）”是独立按钮；部署到 GitHub Pages 后，主按钮会自动生成正确的 Colab URL。
+然后访问：
+
+- `http://localhost:8000/docs/`：Qlib 课程首页；
+- `http://localhost:8000/docs/courses.html`：全部教程；
+- `http://localhost:8000/docs/tutorial.html?course=qlib`：Qlib 讲解模式。
+
+## 新增一门教程
+
+网站的讲解页由课程配置自动生成，无需复制 HTML：
+
+1. 复制 `docs/courses/qlib.json`，并以课程代号命名，例如 `docs/courses/qmt.json`；
+2. 修改课程名称、仓库、发布版本、Notebook 路径和模块内容；
+3. 在 `docs/courses/catalog.json` 中增加课程卡片；
+4. 将 Notebook 放入仓库，并确保配置中的下载路径可以访问；
+5. 新教程的讲解地址即为 `tutorial.html?course=qmt`。
+
+课程配置支持模块名称、预计时间、学习目标、两栏讲解内容、提醒信息和绩效指标卡。页面会自动生成侧栏、章节锚点、上一节/下一节导航、Colab 和下载链接。
 
 ## 发布到 GitHub Pages
 
