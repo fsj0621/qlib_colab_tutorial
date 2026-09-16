@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Qlib 量化投资工作流教程：在 Google Colab 中完成数据探索、因子构建、模型训练、回测与绩效分析。">
+  <title>Qlib 量化投资工作流教程</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell nav-wrap">
+      <a class="brand" href="#top" aria-label="返回首页">
+        <span class="brand-mark">Q</span>
+        <span>Qlib Tutorial</span>
+      </a>
+      <nav class="nav" data-nav aria-label="主导航">
+        <a href="#modules">课程模块</a>
+        <a href="#workflow">学习路径</a>
+        <a href="#start">开始运行</a>
+        <a href="https://qlib.readthedocs.io/" target="_blank" rel="noopener noreferrer">Qlib 文档</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="icon-button" data-theme-toggle aria-label="切换明暗主题">◐</button>
+        <a class="button button-primary" data-colab-link href="#start"><span data-link-label>在 Colab 中运行</span> ↗</a>
+        <button class="menu-button" data-menu-toggle aria-label="打开菜单" aria-expanded="false">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <div class="eyebrow">AI 驱动的量化投资 · 实践教程</div>
+          <h1>从市场数据到<br><span class="gradient-text">可验证的策略</span></h1>
+          <p class="lead">在浏览器中完成 Qlib 全流程：探索 A 股数据，构建 Alpha158 因子，训练 LightGBM，并用严格的时间切分完成组合回测。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" data-colab-link href="#start"><span data-link-label>在 Google Colab 中运行</span> ↗</a>
+            <a class="button button-ghost" data-notebook-download href="#">下载 Notebook（.ipynb）</a>
+          </div>
+          <p class="deployment-hint" data-deployment-hint>当前为本地预览，尚未连接 GitHub 仓库；“在 Colab 中运行”会说明如何启用，下载是单独的操作。</p>
+        </div>
+
+        <div class="terminal-card" aria-label="Qlib 工作流代码示例">
+          <div class="terminal-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="terminal-body">
+            <div><span class="comment"># 初始化中国市场数据</span></div>
+            <div><span class="prompt">›</span> qlib.init(provider_uri=data_dir, region=REG_CN)</div>
+            <br>
+            <div><span class="comment"># Alpha158 + LightGBM</span></div>
+            <div><span class="prompt">›</span> model.fit(dataset)</div>
+            <div><span class="prompt">›</span> recorder = run_backtest(model)</div>
+            <div class="terminal-result">✓ 数据 → 因子 → 模型 → 信号 → 回测</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="shell stats-grid reveal">
+        <div class="stat"><strong>7</strong><span>个渐进式模块</span></div>
+        <div class="stat"><strong>158</strong><span>个经典量价特征</span></div>
+        <div class="stat"><strong>1-click</strong><span>Colab 云端启动</span></div>
+        <div class="stat"><strong>0</strong><span>学生本地环境配置</span></div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="modules">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <div class="eyebrow">Course outline</div>
+          <h2>一条完整的量化研究链路</h2>
+          <p>每个模块既讲解 Qlib 的核心抽象，也保留可动手完成的练习与结果分析。</p>
+        </div>
+        <div class="module-grid">
+          <article class="module-card reveal" style="--module-color:#38bdf8"><div class="module-meta"><span class="module-number">1</span><span>15 MIN</span></div><h3>云端环境准备</h3><p>安装固定版本依赖，下载并检查 A 股教学数据。</p><div class="tag">Colab · Qlib Data</div></article>
+          <article class="module-card reveal" style="--module-color:#2dd4bf"><div class="module-meta"><span class="module-number">2</span><span>10 MIN</span></div><h3>框架初始化</h3><p>理解 provider、region、股票池与基准指数的关系。</p><div class="tag">REG_CN · CSI300</div></article>
+          <article class="module-card reveal" style="--module-color:#fbbf24"><div class="module-meta"><span class="module-number">3</span><span>30 MIN</span></div><h3>数据探索</h3><p>查询成分股、原始特征与 Qlib 表达式特征。</p><div class="tag">D.features · Expressions</div></article>
+          <article class="module-card reveal" style="--module-color:#a78bfa"><div class="module-meta"><span class="module-number">4</span><span>35 MIN</span></div><h3>数据与因子</h3><p>使用 Alpha158 构建特征、标签和无泄漏时间切分。</p><div class="tag">DataHandler · DatasetH</div></article>
+          <article class="module-card reveal" style="--module-color:#fb7185"><div class="module-meta"><span class="module-number">5</span><span>40 MIN</span></div><h3>模型训练</h3><p>训练 LightGBM，记录参数、模型与实验标识。</p><div class="tag">LGBModel · Recorder</div></article>
+          <article class="module-card reveal" style="--module-color:#34d399"><div class="module-meta"><span class="module-number">6</span><span>40 MIN</span></div><h3>信号与回测</h3><p>生成预测信号，运行 TopK 换仓策略和交易成本模型。</p><div class="tag">SignalRecord · PortAna</div></article>
+          <article class="module-card reveal" style="--module-color:#60a5fa"><div class="module-meta"><span class="module-number">7</span><span>60 MIN</span></div><h3>绩效诊断</h3><p>分析收益、回撤、风险、IC、分组收益和预测自相关。</p><div class="tag">Risk · IC · Diagnostics</div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <div class="eyebrow">Learning workflow</div>
+          <h2>不仅“跑通”，还要理解每一步</h2>
+          <p>Notebook 使用训练、验证、测试的顺序切分，把数据泄漏防范与回测严谨性放在同一条主线上。</p>
+        </div>
+        <div class="workflow reveal">
+          <div class="workflow-step"><strong>01 数据</strong><span>成分股与行情特征</span></div>
+          <div class="workflow-step"><strong>02 因子</strong><span>Alpha158 特征工程</span></div>
+          <div class="workflow-step"><strong>03 模型</strong><span>LightGBM 预测收益</span></div>
+          <div class="workflow-step"><strong>04 组合</strong><span>TopK 换仓策略</span></div>
+          <div class="workflow-step"><strong>05 评价</strong><span>收益、风险与 IC</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="start">
+      <div class="shell requirements-grid">
+        <div class="checklist reveal">
+          <div class="eyebrow">Before you start</div>
+          <h2>开始前准备</h2>
+          <ul>
+            <li>一个可使用 Colab 的 Google 账号</li>
+            <li>基本的 Python 与 pandas 阅读能力</li>
+            <li>首次运行预留约 5–15 分钟准备环境</li>
+            <li>建议按顺序执行所有单元格</li>
+          </ul>
+        </div>
+        <div class="run-card reveal">
+          <div class="eyebrow">Ready to run</div>
+          <h3>无需在本地安装 Qlib</h3>
+          <p>点击按钮后，Colab 会从 GitHub 打开学生版 Notebook。首个单元格负责安装依赖和下载数据，辅助分析函数已经内嵌，因此不依赖额外本地文件。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" data-colab-link href="#"><span data-link-label>打开 Colab Notebook</span> ↗</a>
+            <a class="button button-ghost" data-notebook-download href="#">下载 Notebook（.ipynb）</a>
+            <a class="text-link" data-github-link href="#">浏览课程仓库</a>
+          </div>
+          <div class="note">免费 Colab 的计算资源和运行时长并不保证固定；教学结果可能因运行时或底层库更新出现轻微差异。</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="shell">
+      <section class="cta reveal">
+        <h2>把研究流程变成可复现的实验</h2>
+        <p>从第一个数据查询开始，完成一次有时间边界、有交易成本、有风险诊断的量化研究实践。</p>
+        <a class="button button-primary" data-colab-link href="#"><span data-link-label>立即开始教程</span> ↗</a>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-row">
+      <span>Qlib 量化投资工作流教程 · 仅用于教学</span>
+      <span>基于 Microsoft Qlib 示例改编 · MIT License</span>
+    </div>
+  </footer>
+
+  <dialog class="setup-dialog" data-colab-dialog aria-labelledby="colab-dialog-title">
+    <button class="dialog-close" data-dialog-close aria-label="关闭">×</button>
+    <div class="eyebrow">Colab link not configured</div>
+    <h2 id="colab-dialog-title">还差一个 GitHub 仓库地址</h2>
+    <p>Google Colab 不能直接读取电脑上的本地文件。Notebook 需要先放到公开的 GitHub 仓库，页面才能生成真正的“一键在 Colab 中运行”链接。</p>
+    <ol>
+      <li>将 <code>qlib_colab_tutorial</code> 推送到 GitHub；</li>
+      <li>部署 <code>docs/</code> 为 GitHub Pages；</li>
+      <li>再次点击按钮，即可自动跳转 Colab。</li>
+    </ol>
+    <div class="dialog-actions">
+      <a class="button button-primary" data-notebook-download href="#">先下载 Notebook（.ipynb）</a>
+      <button class="button button-ghost" data-dialog-close>知道了</button>
+    </div>
+  </dialog>
+
+  <script src="site-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
