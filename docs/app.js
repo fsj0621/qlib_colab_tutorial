@@ -27,7 +27,7 @@
   if (owner && repo) {
     const githubUrl = `https://github.com/${owner}/${repo}`;
     const colabUrl = `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(notebookPath)}`;
-    const notebookUrl = `${githubUrl}/raw/refs/heads/${branch}/${encodeURI(notebookPath)}`;
+    const notebookUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/${encodeURI(notebookPath)}`;
     colabLinks.forEach((link) => {
       link.href = colabUrl;
       // Some embedded browsers silently block links that open a new tab.
