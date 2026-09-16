@@ -156,8 +156,8 @@ $supportHeader = @'
 
 $handlerConfig = @'
 # ==================== 低内存教学配置 ====================
-# 保留完整的测试区间，但缩短训练与归一化区间。
-# 这能显著减少 Alpha158 内部 raw / infer / learn 三份数据的常驻内存。
+# 正式训练只覆盖 2017–2020；raw / infer / learn 教学另用一个月的小处理器。
+# 正式处理器启用 drop_raw，只保留训练和预测所需的数据。
 def show_process_memory(stage):
     """显示当前 Python 进程内存，便于区分内存终止与网络断连。"""
     try:
@@ -169,9 +169,17 @@ def show_process_memory(stage):
 
 
 TEACHING_SEGMENTS = {
-    "train": ("2014-01-01", "2015-12-31"),
-    "valid": ("2016-01-01", "2016-12-31"),
-    "test": ("2017-01-01", "2020-08-01"),
+    "train": ("2017-01-01", "2017-12-31"),
+    "valid": ("2018-01-01", "2018-12-31"),
+    "test": ("2019-01-01", "2020-08-01"),
+}
+
+demo_handler_config = {
+    "start_time": "2019-01-01",
+    "end_time": "2019-01-31",
+    "fit_start_time": "2019-01-01",
+    "fit_end_time": "2019-01-31",
+    "instruments": market,
 }
 
 data_handler_config = {
@@ -180,14 +188,37 @@ data_handler_config = {
     "fit_start_time": TEACHING_SEGMENTS["train"][0],
     "fit_end_time": TEACHING_SEGMENTS["train"][1],
     "instruments": market,
+    "drop_raw": True,
 }
 
 print("低内存教学区间:", TEACHING_SEGMENTS)
 '@
 
+$handlerInit = @'
+# ==================== 初始化一个月的演示处理器 ====================
+from qlib.contrib.data.handler import Alpha158
+
+# 这个小处理器只负责讲解因子与 raw / infer / learn，不参与正式训练。
+demo_handler = Alpha158(**demo_handler_config)
+handler = demo_handler
+show_process_memory("一个月演示处理器初始化后")
+'@
+
 $datasetInit = @'
 # ==================== 初始化数据集 ====================
-# DatasetH 只引用上面已经创建的 Alpha158，不会再复制一套处理器。
+# 先释放一个月的演示处理器，再创建启用 drop_raw 的正式处理器。
+import gc
+
+for variable_name in ["features", "labels", "mode_samples"]:
+    globals().pop(variable_name, None)
+
+del handler, demo_handler
+gc.collect()
+
+handler = Alpha158(**data_handler_config)
+show_process_memory("正式 Alpha158 初始化后（drop_raw=True）")
+
+# DatasetH 只引用这一个正式处理器，不会再复制一套 Alpha158。
 from qlib.data.dataset import DatasetH
 
 dataset = DatasetH(handler=handler, segments=TEACHING_SEGMENTS)
@@ -233,7 +264,7 @@ print("三种模式仅保留一个月样本；完整数据仍由 handler 统一�
 $dataModeExercise = @'
 ##### **课后作业（2）：理解三种数据模式（raw / infer / learn）**
 
-下面的 `mode_samples` 只包含一个月数据，足以比较三种处理模式，同时避免在 Colab 中保存三份约百万行的全量矩阵。
+下面的 `mode_samples` 来自独立的一个月演示处理器，足以比较三种模式；进入正式训练前会整体释放。
 
 1. 比较三种样本的形状与缺失值数量；
 2. 比较标签的均值和标准差；
@@ -257,17 +288,17 @@ $datasetSample = @'
 # ============================================
 # 1. 查看训练期内一个月的小样本
 # ============================================
-sample_train_period = slice("2014-12-01", "2014-12-31")
+sample_train_period = slice("2017-12-01", "2017-12-31")
 
 train_learn_sample = dataset.prepare(sample_train_period, data_key="learn")
 print("学习数据样本形状:", train_learn_sample.shape)
 display(train_learn_sample.head())
 
-train_raw_sample = dataset.prepare(sample_train_period, data_key="raw")
-print("原始数据样本形状:", train_raw_sample.shape)
-display(train_raw_sample.head())
+train_infer_sample = dataset.prepare(sample_train_period, data_key="infer")
+print("推理数据样本形状:", train_infer_sample.shape)
+display(train_infer_sample.head())
 
-del train_learn_sample, train_raw_sample
+del train_learn_sample, train_infer_sample
 gc.collect()
 '@
 
@@ -278,7 +309,7 @@ $segmentShapes = @'
 segment_shapes = {}
 for segment in ("train", "valid", "test"):
     segment_labels = dataset.prepare(segment, col_set="label")
-    segment_shapes[segment] = (len(segment_labels), len(handler.get_cols(col_set="feature")))
+    segment_shapes[segment] = (len(segment_labels), len(factor_dict))
     del segment_labels
     gc.collect()
 
@@ -292,7 +323,7 @@ $featureLabelSamples = @'
 # ============================================
 # 3. 使用小时间段查看特征和标签
 # ============================================
-sample_train_period = slice("2014-12-01", "2014-12-31")
+sample_train_period = slice("2017-12-01", "2017-12-31")
 
 features_df = dataset.prepare(sample_train_period, col_set="feature")
 print("\n特征样本形状:", features_df.shape)
@@ -315,8 +346,7 @@ for variable_name in [
 ]:
     globals().pop(variable_name, None)
 
-# raw 数据已经完成教学展示，训练和预测只需要 learn / infer。
-# 删除处理器内部 raw 表可再释放一份完整 Alpha158 数据。
+# 正式处理器已启用 drop_raw；保留兼容性检查，确保 raw 不再常驻。
 if hasattr(handler, "_data"):
     del handler._data
 
@@ -378,7 +408,7 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         if ($text -match '# 获取实际的 label 数据') { $text = $labelSample }
         if ($text -match '# ==================== 数据处理器配置') { $text = $handlerConfig }
         if ($text -match 'handler = Alpha158\(\*\*data_handler_config\)') {
-            $text = $text.Replace('handler = Alpha158(**data_handler_config)', "handler = Alpha158(**data_handler_config)`nshow_process_memory(`"Alpha158 初始化后`")")
+            $text = $handlerInit
         }
         if ($text -match '# 直接从 DataHandler 获取三种数据') { $text = $dataModeSamples }
         if ($text -match '# 对比三种数据的差异') { $text = $dataModeExerciseCode }
@@ -392,8 +422,14 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
             $text = $text.Replace('"train": ("2008-01-01", "2014-12-31")', '"train": TEACHING_SEGMENTS["train"]')
             $text = $text.Replace('"valid": ("2015-01-01", "2016-12-31")', '"valid": TEACHING_SEGMENTS["valid"]')
             $text = $text.Replace('"test": ("2017-01-01", "2020-08-01")', '"test": TEACHING_SEGMENTS["test"]')
-            $text = $text.Replace('# 训练集：7年数据', '# 训练集：2年低内存教学数据')
+            $text = $text.Replace('# 训练集：7年数据', '# 训练集：1年课堂轻量数据')
             $text = $text.Replace('# 验证集：2年数据（用于早停）', '# 验证集：1年数据（用于早停）')
+            $text = $text.Replace('# 测试集：3.5年数据（用于最终评估）', '# 测试集：约1.5年数据（用于最终评估）')
+        }
+
+        if ($text -match 'port_analysis_config\s*=') {
+            $text = $text.Replace('"start_time": "2017-01-01"', '"start_time": TEACHING_SEGMENTS["test"][0]')
+            $text = $text.Replace('"end_time": "2020-08-01"', '"end_time": TEACHING_SEGMENTS["test"][1]')
         }
 
         # task 中保留数据集配置用于实验记录，但训练时复用第 4 节已创建的 dataset。

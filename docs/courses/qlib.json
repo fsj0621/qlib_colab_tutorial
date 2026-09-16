@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.4",
+  "version": "v1.0.5",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.4",
+  "release": "v1.0.5",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
@@ -154,7 +154,7 @@
       "note": {
         "tone": "warning",
         "title": "讲课重点",
-        "text": "模型表现再好，也不能弥补时间穿越。标准教学版使用 2014–2020 数据，并保留 2017–2020 测试期；训练时复用同一个 DatasetH，避免 Colab 同时保存多套 Alpha158。"
+        "text": "模型表现再好，也不能弥补时间穿越。课堂轻量版使用 2017 年训练、2018 年验证、2019–2020 年测试；raw / infer / learn 只用一个月的小处理器演示。"
       }
     },
     {
@@ -190,7 +190,7 @@
       },
       "note": {
         "title": "低内存运行",
-        "text": "训练前会删除演示 DataFrame 和处理器内部 raw 表；训练结束后释放 LightGBM 训练矩阵，再保存模型，以降低免费 Colab 的峰值内存。"
+        "text": "正式 Alpha158 启用 drop_raw，只保留训练和预测所需数据；训练结束后释放 LightGBM 训练矩阵，再保存模型。"
       }
     },
     {

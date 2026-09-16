@@ -40,7 +40,7 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 python scripts/build_tutorial_content.py `
   --input "docs/downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" `
   --output "docs/courses/qlib-notebook.json" `
-  --revision "v1.0.4"
+  --revision "v1.0.5"
 ```
 
 课程配置中的 `notebookContent` 指向生成结果。更新已发布 Notebook 后重新运行此命令，网页讲解内容就会同步更新。
@@ -59,7 +59,7 @@ python scripts/build_tutorial_content.py `
 
 Notebook 固定使用 Colab `2026.07` 运行时（Python 3.12.13），因为 `pyqlib==0.9.7` 暂无 Python 3.13 安装包。若已经连接到 Python 3.13，请在 **代码执行程序 → 更改运行时类型 → 运行时版本** 中选择 `2026.07`，然后重新运行。
 
-`v1.0.4` 采用更严格的低内存教学流程：三种 DataHandler 模式与特征/标签展示只读取一个月样本，训练区间缩短为 2014–2015、验证期为 2016，并保留 2017–2020 测试期。训练复用已创建的 `DatasetH`，训练前清理临时 DataFrame 和处理器内部 raw 表，保存模型前释放 LightGBM 训练矩阵。
+`v1.0.5` 采用课堂轻量流程：raw / infer / learn 由一个月的小型 Alpha158 处理器演示，随后整体释放；正式处理器启用 `drop_raw=True`，使用 2017 年训练、2018 年验证和 2019–2020 年测试。训练复用一个 `DatasetH`，保存模型前释放 LightGBM 训练矩阵。
 
 Qlib 当前 README 说明官方数据下载暂时停用，因此 Notebook 使用其推荐的社区数据镜像：
 
