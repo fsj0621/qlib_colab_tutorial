@@ -1,0 +1,1652 @@
+{
+  "schemaVersion": 1,
+  "source": "Qlib量化投资工作流教程_Colab学生版.ipynb",
+  "revision": "v1.0.2",
+  "cellCount": 172,
+  "modules": [
+    {
+      "number": 1,
+      "title": "云端环境准备",
+      "cellRange": [
+        1,
+        5
+      ],
+      "stats": {
+        "markdown": 1,
+        "code": 4,
+        "exercises": 0
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地安装 Qlib。下面的初始化单元格会：</p>\n<ul>\n<li>固定使用 Colab 2026.07 运行时（Python 3.12），避免 Qlib 与 Python 3.13 不兼容；</li>\n<li>安装与本教程验证版本一致的 Qlib、Plotly、Statsmodels 和 LightGBM；</li>\n<li>从 Qlib README 当前推荐的社区镜像下载 A 股教学数据；</li>\n<li>将数据解压到 Colab 的 <code>/content/qlib_data/cn_data</code>；</li>\n<li>检查 Python 版本和数据目录是否就绪。</li>\n</ul>\n<blockquote>Colab 虚拟机是临时的。运行时被回收后，依赖与数据需要重新准备。</blockquote>"
+            },
+            {
+              "type": "code",
+              "cell": 2,
+              "source": "#@title 运行一次：安装依赖并准备 Qlib A 股数据\nimport os\nimport sys\nimport subprocess\nfrom pathlib import Path\n\nIN_COLAB = \"google.colab\" in sys.modules\nSUPPORTED_PYTHON_MAX = (3, 12)\nPINNED_PACKAGES = [\n    \"pyqlib==0.9.7\",\n    \"plotly==6.6.0\",\n    \"statsmodels==0.14.6\",\n    \"lightgbm==4.6.0\",\n]\n\nif IN_COLAB and sys.version_info[:2] > SUPPORTED_PYTHON_MAX:\n    from IPython.display import HTML, display\n    display(HTML(\"\"\"\n    <div style=\"padding:16px;border:2px solid #f59e0b;border-radius:12px;background:#fffbeb\">\n      <b>需要切换到 Python 3.12 运行时</b><br>\n      当前 Colab 使用 Python 3.13，但 Qlib 0.9.7 尚未提供 Python 3.13 安装包。<br>\n      请选择：<b>代码执行程序 → 更改运行时类型 → 运行时版本 → 2026.07</b>，保存后重新运行全部单元格。\n    </div>\n    \"\"\"))\n    raise RuntimeError(\n        f\"当前 Python {sys.version.split()[0]} 不受 Qlib 0.9.7 支持；请切换到 Colab 2026.07（Python 3.12）。\"\n    )\n\nif IN_COLAB:\n    print(\"正在安装教学环境……\")\n    install_result = subprocess.run(\n        [sys.executable, \"-m\", \"pip\", \"install\", \"--quiet\", *PINNED_PACKAGES],\n        stdout=subprocess.PIPE,\n        stderr=subprocess.STDOUT,\n        text=True,\n    )\n    if install_result.returncode != 0:\n        print(\"\\n依赖安装日志（最后 40 行）：\")\n        print(\"\\n\".join(install_result.stdout.splitlines()[-40:]))\n        raise RuntimeError(\"教学环境安装失败，请保留上方日志并联系教师。\")\n    QLIB_DATA_DIR = Path(\"/content/qlib_data/cn_data\")\nelse:\n    print(\"当前不是 Colab：请先执行 pip install -r requirements-colab.txt\")\n    QLIB_DATA_DIR = Path(\"./qlib_data/cn_data\").resolve()\n\ncalendar_file = QLIB_DATA_DIR / \"calendars\" / \"day.txt\"\nif IN_COLAB and not calendar_file.exists():\n    archive = Path(\"/content/qlib_bin.tar.gz\")\n    QLIB_DATA_DIR.mkdir(parents=True, exist_ok=True)\n    print(\"正在下载 Qlib A 股教学数据（约 464 MB）……\")\n    subprocess.run(\n        [\n            \"wget\", \"-q\", \"--show-progress\",\n            \"https://github.com/chenditc/investment_data/releases/latest/download/qlib_bin.tar.gz\",\n            \"-O\", str(archive),\n        ],\n        check=True,\n    )\n    subprocess.run(\n        [\"tar\", \"-xzf\", str(archive), \"-C\", str(QLIB_DATA_DIR), \"--strip-components=1\"],\n        check=True,\n    )\n    archive.unlink(missing_ok=True)\n\nif not calendar_file.exists():\n    raise FileNotFoundError(\n        f\"没有找到 Qlib 数据：{QLIB_DATA_DIR}\\n\"\n        \"在 Colab 中请重新运行本单元格；本地运行请按 README 准备数据。\"\n    )\n\nprint(f\"Python: {sys.version.split()[0]}\")\nprint(f\"Qlib 数据目录: {QLIB_DATA_DIR}\")\nprint(\"环境准备完成 ✓\")",
+              "lineCount": 73,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 3,
+              "source": "# 教程辅助函数（从 support/Utils_backtest.py 内嵌，确保 Colab 单文件可运行）\n\"\"\"\n回测结果分析模块\n\n提供回测结果分析的完整功能，包括数据加载、回测报告分析、风险分析、模型性能分析等。\n\"\"\"\n\nimport pandas as pd\nimport numpy as np\nimport plotly.graph_objects as go\nfrom typing import Dict, Tuple, List\nfrom qlib.contrib.report import analysis_position, analysis_model\nfrom qlib.contrib.evaluate import risk_analysis\nfrom qlib.contrib.eva.alpha import calc_ic\nfrom scipy import stats as scipy_stats\n\n\n# ==================== 工具函数 ====================",
+              "lineCount": 489,
+              "collapsed": true,
+              "omitted": true,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 4,
+              "source": "import sys, site\nfrom pathlib import Path",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 5,
+              "source": "import qlib\nimport pandas as pd\nfrom qlib.constant import REG_CN                                  # 导入中国区域常量\nfrom qlib.utils import init_instance_by_config                    # 导入工具函数：配置初始化实例\nfrom qlib.workflow import R                                       # 导入 workflow 记录对象 R\nfrom qlib.workflow.record_temp import SignalRecord, PortAnaRecord # 导入记录模板：信号记录和组合分析记录\nfrom qlib.utils import flatten_dict                               # 导入字典扁平化工具函数，将嵌套字典转换为单层字典，便于记录参数",
+              "lineCount": 7,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 4,
+          "exercise": false
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "title": "框架初始化",
+      "cellRange": [
+        6,
+        12
+      ],
+      "stats": {
+        "markdown": 4,
+        "code": 3,
+        "exercises": 0
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将初始化 Qlib 框架，设置数据路径和股票池。这是整个工作流的第一步。</p>\n<p><strong>学习目标</strong>：</p>\n<ul>\n<li>理解如何初始化 Qlib 框架</li>\n<li>理解股票池（market）和基准指数（benchmark）</li>\n</ul>"
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>步骤</strong>1: 设置数据存储路径</p>"
+            },
+            {
+              "type": "code",
+              "cell": 8,
+              "source": "# provider_uri: 指定 qlib 数据的存储位置（与数据下载的target_dir一致）\nprovider_uri = str(QLIB_DATA_DIR)  # Colab 与本地共用",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>步骤</strong>2: 初始化 Qlib 系统</p>\n<p><strong>概念说明</strong>：</p>\n<ul>\n<li><code>qlib.init()</code> 是 Qlib 的核心初始化函数，用于启动整个框架</li>\n<li>需要指定数据存储路径（provider_uri）和市场区域（region）</li>\n<li>region：不同模式会导致不同的交易限制和成本。region 只是用于定义一批配置的快捷方式，包括最小交易单位（trade_unit）、交易限制（limit_threshold）等。它不是必需的，如果现有的 region 设置无法满足需求，用户可以手动设置关键配置。</li>\n<li>初始化后，才能使用 Qlib 的各种功能</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 10,
+              "source": "# ==================== 初始化 Qlib 框架 ====================\n# 启动 Qlib 框架，指定数据路径、市场区域和实验记录数据库\n\n# 参数说明：\n# provider_uri：数据存储路径，Qlib 会从这个路径读取股票数据\n# region：市场区域，REG_CN 表示中国市场（A股）\n# exp_manager：使用 SQLite 保存实验记录，兼容新版 MLflow\n\nmlflow_db = (Path(\"/content\") if IN_COLAB else Path.cwd()) / \"qlib_mlflow.db\"\nexp_manager = {\n    \"class\": \"MLflowExpManager\",\n    \"module_path\": \"qlib.workflow.expm\",\n    \"kwargs\": {\n        \"uri\": f\"sqlite:///{mlflow_db.resolve().as_posix()}\",\n        \"default_exp_name\": \"Experiment\",\n    },\n}\n\nqlib.init(provider_uri=provider_uri, region=REG_CN, exp_manager=exp_manager)\nprint(f\"MLflow 实验数据库: {mlflow_db}\")",
+              "lineCount": 20,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>步骤3</strong>: 指定股票池</p>"
+            },
+            {
+              "type": "code",
+              "cell": 12,
+              "source": "# ==================== 股票池和基准指数配置 ====================\n\nmarket = \"csi300\"        # 股票池（指定要研究的股票集合）：沪深300成分股\nbenchmark = \"SH000300\"   # 基准指数（指定要对比的指数）：沪深300指数",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 3,
+          "exercise": false
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "title": "数据探索",
+      "cellRange": [
+        13,
+        39
+      ],
+      "stats": {
+        "markdown": 11,
+        "code": 16,
+        "exercises": 3
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将学习如何探索和了解 Qlib 中的股票数据。在开始正式的数据处理之前，先了解数据的结构对理解后续步骤很重要。</p>\n<p><strong>学习目标</strong>：</p>\n<ul>\n<li>理解如何查看股票列表和特征数据</li>\n<li>了解原始特征和派生特征的区别</li>\n<li>理解动态成分股的概念（股票池会随时间变化）</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 14,
+              "source": "# D对象（\"Data\"缩写）是Qlib中的全局实例，为数据检索提供统一接口。调用qlib.init()后，D即可响应数据请求。\nfrom qlib.data import D\nfrom pprint import pprint",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "3.1 查看成分股列表",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>对于大部分指数来说，其成分股列表都不是一成不变的。因此，我们需要指定一个时间段，然后查看成分股列表在该时间段包含哪些公司。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 16,
+              "source": "D.instruments('csi300')",
+              "lineCount": 1,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 17,
+              "source": "# 查询一年沪深指数成分股\ninstruments_dict = D.list_instruments(\n    instruments=D.instruments('csi300'),\n    start_time=\"2019-01-01\",\n    end_time=\"2019-12-31\"\n)\nprint('总数量', len(instruments_dict))",
+              "lineCount": 7,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 18,
+              "source": "# 使用 DataFrame 展示部分成分股及其生效区间\npreview_items = list(instruments_dict.items())\nrows = []\nfor inst, spans in preview_items:\n    for span in spans:\n        start_date = span[0]\n        end_date = span[1]\n        rows.append({\n            'instrument': inst,\n            'start_date': start_date,\n            'end_date': end_date,\n        })\npreview_df = pd.DataFrame(rows)\ndisplay(preview_df)",
+              "lineCount": 14,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 19,
+              "source": "instruments_dict = D.list_instruments(\n    instruments=D.instruments(\"csi300\"),\n    start_time=\"2019-02-04\",\n    end_time=\"2019-02-04\",\n    as_list=True # as_list=True：返回列表（list）；默认值as_list=False：返回字典（dict），键是股票代码，值是该股票在指定时间段内的“生效区间”\n)\nprint(len(instruments_dict))",
+              "lineCount": 7,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 4,
+          "exercise": false
+        },
+        {
+          "title": "3.2 查看特征",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<h5>原始特征</h5>"
+            },
+            {
+              "type": "code",
+              "cell": 21,
+              "source": "# ============================================\n# 查看预置数据的全部原始特征\n# ============================================\n\n# 查看某个股票的可用特征\nstock_features_path = QLIB_DATA_DIR / \"features\" / \"sh600000\"  # 以浦发银行为例\n\n# 列出所有特征文件\nfeature_files = list(stock_features_path.glob(\"*.day.bin\"))\nfeatures = [f.stem.split('.')[0] for f in feature_files]\nprint(\"可用的原始特征:\")\nfor feature in sorted(features):\n    print(f\"  ${feature}\", end=\" \")",
+              "lineCount": 13,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p>总结：qlib 中国市场数据（通过 <code>qlib-data</code> 下载的标准数据），<strong>通常包含以下原始特征</strong>：</p>"
+            },
+            {
+              "type": "code",
+              "cell": 23,
+              "source": "fields_basic = [\n    \"$open\",      # 开盘价\n    \"$high\",      # 最高价\n    \"$low\",       # 最低价\n    \"$close\",     # 收盘价\n    \"$volume\",    # 成交量\n    \"$factor\",    # 复权因子\n    \"$change\",    # 涨跌额\n]",
+              "lineCount": 9,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>注意事项：</strong></p>\n<ol>\n<li>不同数据源可能提供不同的字段</li>\n<li>高频数据（如分钟线）可能有额外字段</li>\n<li>自定义数据可以包含任意字段</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 25,
+              "source": "# ============================================\n# 示例1: 查看单个股票的单个特征\n# ============================================\ndf1 = D.features(\n    instruments=[\"SH600000\"],  # 浦发银行\n    fields=[\"$close\"],         # 收盘价\n    start_time=\"2020-01-01\",\n    end_time=\"2020-12-31\"\n)\ndisplay(df1.head(5))",
+              "lineCount": 10,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 26,
+              "source": "# ============================================\n# 示例2: 查看多个股票的多个特征\n# ============================================\ndf2 = D.features(\n    instruments=[\"SH600000\", \"SH600016\", \"SH600019\"],\n    fields=fields_basic,\n    start_time=\"2020-01-01\",\n    end_time=\"2020-01-03\"\n)\ndisplay(df2)",
+              "lineCount": 10,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 27,
+              "source": "# ============================================\n# 示例3: 使用市场指数查看所有成分股\n# ============================================\ndf3 = D.features(\n    instruments=D.instruments(\"csi300\"),  # CSI300所有成分股\n    fields=[\"$close\"],\n    start_time=\"2020-01-01\",\n    end_time=\"2020-01-03\"\n)\nprint(f\"数据形状: {df3.shape}\")\nprint(f\"涉及股票数: {len(df3.index.get_level_values('instrument').unique())}\")\ndisplay(df3.head(10))",
+              "lineCount": 12,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 28,
+              "source": "# ============================================\n# 示例4: 不指定时间范围（查看所有可用数据）\n# ============================================\ndf4 = D.features(\n    instruments=[\"SH600000\"],\n    fields=[\"$close\"]\n    # 不指定 start_time 和 end_time\n)\nprint(f\"数据起始: {df4.index.get_level_values('datetime').min()}\")\nprint(f\"数据结束: {df4.index.get_level_values('datetime').max()}\")\nprint(f\"总记录数: {len(df4)}\")",
+              "lineCount": 11,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 6,
+          "exercise": false
+        },
+        {
+          "title": "派生特征",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>概念说明</strong>：</p>\n<ul>\n<li><strong>派生特征</strong>：基于原始特征计算得到的衍生指标</li>\n<li>例如：移动平均线（MA）、相对强弱指标（RSI）等</li>\n<li>这些特征通过数学运算从原始特征中提取，通常包含更多信息</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 30,
+              "source": "# ============================================\n# 示例5: 使用表达式计算派生特征\n# ============================================\ndf5 = D.features(\n    instruments=[\"SH600000\", \"SH600016\"],\n    fields=[\n        \"$close\",                                    # 原始收盘价\n        \"Ref($close, 1)\",                            # 前一天收盘价\n        \"($close - Ref($close, 1)) / Ref($close, 1)\",  # 日收益率\n        \"Mean($close, 5)\",                           # 5日均价\n        \"Std($close, 20)\",                           # 20日标准差\n        # MACD 相关\n        \"EMA($close, 12)\",                           # 12日指数移动平均\n        \"EMA($close, 26)\",                           # 26日指数移动平均\n        \"EMA($close, 12) - EMA($close, 26)\",         # MACD DIF\n        # 布林带\n        \"Mean($close, 20) + 2 * Std($close, 20)\",    # 上轨\n        \"Mean($close, 20) - 2 * Std($close, 20)\",    # 下轨\n        # 动量指标\n        \"$close / Ref($close, 10) - 1\",              # 10日动量\n    ],\n    start_time=\"2020-01-01\",\n    end_time=\"2020-01-31\"\n    )\n# 可以重命名列\ndf5.columns = ['close', 'close_lag1', 'return', 'ma5', 'std20', 'ema12', 'ema26', 'macd_dif', \n               'bb_upper', 'bb_lower', 'momentum10']\ndisplay(df5.head(5))",
+              "lineCount": 28,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p>注意到<code>D.features</code>返回值的类型是pandas dataframe，因此dataframe的相关处理技巧也适用于<code>D.features</code>的返回值。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 32,
+              "source": "# ============================================\n# 示例6: 实际应用 - 计算相关性矩阵\n# ============================================\ndf6 = D.features(\n    instruments=D.instruments(\"csi300\"),\n    fields=[\"$close\"],\n    start_time=\"2019-01-01\",\n    end_time=\"2019-12-31\"\n)\n\n# 转换为宽格式并计算收益率\ndf6 = df6.unstack(level='instrument')\ndisplay(df6.head())\n\nreturns = df6.pct_change(fill_method=None)\ncorrelation_matrix = returns.corr()\n\nprint(f\"相关性矩阵形状: {correlation_matrix.shape}\")\ndisplay(correlation_matrix.iloc[:5, :5])  # 显示前5×5",
+              "lineCount": 19,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p>更多可选运算符，可以阅读<code>qlib.data.ops</code>的帮助文档。</p>"
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "课后作业（1）：股票筛选",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>参考链接: https://qlib.readthedocs.io/en/latest/reference/api.html#data</p>\n<p>股票池：csi300<br>时间：2015-01-01 到 2016-02-15</p>\n<ol>\n<li>使用 NameDFilter 从中筛选出只在上交所（SH）上市的成分股（即代码以 SH 开头），计算占比</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 35,
+              "source": "# 请补充代码",
+              "lineCount": 1,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": true,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<ol>\n<li>使用 ExpressionDFilter，筛选收盘价曾大于 1000 的股票</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 37,
+              "source": "# 请补充代码",
+              "lineCount": 1,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": true,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<ol>\n<li>使用 ExpressionDFilter，筛选过去 60 日涨幅超过 50% 的股票</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 39,
+              "source": "# 请补充代码",
+              "lineCount": 1,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": true,
+              "outputs": []
+            }
+          ],
+          "codeCount": 3,
+          "exercise": true
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "title": "数据准备",
+      "cellRange": [
+        40,
+        64
+      ],
+      "stats": {
+        "markdown": 8,
+        "code": 14,
+        "exercises": 1
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将准备用于模型训练的数据。这是整个工作流的核心步骤。</p>\n<p><strong>学习目标</strong></p>\n<ul>\n<li>理解如何配置数据处理器（DataHandler）</li>\n<li>理解如何配置数据集（DatasetH）</li>\n<li>了解数据分割和归一化的基本概念</li>\n</ul>\n<p><strong>DataHandler（数据处理器）</strong></p>\n<ul>\n<li>负责从原始数据中提取特征和标签，并进行数据标准化</li>\n</ul>\n<p><strong>DatasetH（数据集）</strong></p>\n<ul>\n<li>基于 DataHandler 创建，负责数据分割（train/valid/test）和数据获取</li>\n</ul>"
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>示例任务</strong></p>\n<ul>\n<li>构造基于Alpha158特征集的数据集用于跨日收益预测模型训练</li>\n</ul>\n<p><em>Alpha158特征集</em></p>\n<ul>\n<li>Qlib量化投资平台提供的一个经典特征集，包含158个经过精心设计的量化因子。这些因子主要基于股票的开盘价、最高价、最低价、收盘价和成交量等基础数据，通过人工特征工程方法提取而成</li>\n<li><strong>KBAR特征</strong>（9个）：K线形态特征，如 <code>($close-$open)/$open</code> 等</li>\n<li><strong>PRICE特征</strong>（4个）：原始价格特征，如 <code>$open/$close</code>, <code>$high/$close</code> 等</li>\n<li><strong>ROLLING特征</strong>（145个）：滚动统计特征，包含约30种技术指标</li>\n<li>使用 <code>windows=[5, 10, 20, 30, 60]</code> 天的5种滚动窗口计算</li>\n<li>包括趋势类指标（ROC, MA, BETA等）、波动性指标（STD, RSQR等）、极值指标（MAX, MIN等）、动量指标以及量价关系（CORR, CORD等）</li>\n</ul>\n<p><em>跨日收益率预测任务</em></p>\n<ul>\n<li>使用 T 日及之前的数据（特征）预测 T+1 → T+2 的收益率（标签）</li>\n<li>预测本身使用了 T 日的收盘价信息</li>\n<li>当天收盘后才能进行预测</li>\n<li>对应的策略需要在 T 日收盘后进行预测及分析，然后在 T+1 日开盘后进行交易，更符合实际交易场景</li>\n<li>指标计算时间线图解</li>\n</ul>\n<pre><code>时间轴:\n  T-2      T-1       T       T+1            T+2\n   │        │        │       |              │\n   │        │      今天       │              │\n   │        │     (特征)      │              │\n   │        │        │       │              │\n   │        │        │     Close₁         Close₂\n   │        │        │        ↓            ↓\n   │        │        │    Ref($close,-1)  Ref($close,-2)\n   │        │        │                ↓\n   │        │        └────────────&gt; 标签 = Close₂/Close₁ - 1</code></pre>\n<p><em>数据集构造流程</em></p>\n<ul>\n<li>原始特征及标签提取 -&gt; 数据标准化 -&gt; 数据集划分</li>\n</ul>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "4.1 配置数据处理器（DataHandler）",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>数据处理器负责从原始数据中提取<strong>特征</strong>和<strong>标签</strong>，并进行<strong>数据标准化</strong>。我们使用 Qlib 提供的 <code>Alpha158</code> 数据处理器，它会自动构建 158 个特征以及对应跨日收益率标签</p>\n<p><strong>步骤 1：配置参数</strong></p>\n<p>首先，我们需要配置数据加载的参数。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 43,
+              "source": "# ==================== 数据处理器配置 ====================\n# 配置数据加载和处理的参数\n\ndata_handler_config = {\n    # ========== 数据加载时间范围 ==========\n    # 包含训练+验证+测试的所有数据\n    \"start_time\": \"2008-01-01\",      # 数据起始时间\n    \"end_time\": \"2020-08-01\",        # 数据结束时间\n    \n    # ========== 数据拟合/归一化时间范围 ==========\n    # 应只包含训练集时间段，避免数据泄露\n    \"fit_start_time\": \"2008-01-01\",  # 与训练集起始时间一致\n    \"fit_end_time\": \"2014-12-31\",    # 与训练集结束时间一致\n    \n    # ========== 股票池配置 ==========\n    # instruments：股票池，指定要使用的股票集合\n    # 可选项包括：\n    # - 股票代码列表：[\"SH600000\", \"SZ000001\"]\n    # - 股票池名称：\"csi300\"（沪深300成分股）\n    # - 全部股票：\"all\"\n    \"instruments\": market,            # market = \"csi300\"（沪深300成分股）\n}",
+              "lineCount": 22,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>步骤 2：初始化数据处理器</strong></p>\n<p>配置完成后，使用 <code>Alpha158</code> 初始化数据处理器。初始化时会自动：</p>\n<ul>\n<li>加载原始数据</li>\n<li>计算 158 个特征（价格、成交量、技术指标等）</li>\n<li>生成标签（跨日收益率）</li>\n<li>进行数据预处理（归一化、缺失值处理等）</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 45,
+              "source": "# ==================== 初始化数据处理器 ====================\nfrom qlib.contrib.data.handler import Alpha158\n\n# Alpha158 是 Qlib 提供的预置数据处理器，自动构建 158 个特征\nhandler = Alpha158(**data_handler_config)",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "Alpha158 数据处理器说明",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><code>Alpha158</code> 是 Qlib 提供的预置数据处理器，它在初始化时会自动：</p>\n<ol>\n<li><strong>构建 158 个特征</strong>：通过 <code>Alpha158DL.get_feature_config()</code> 方法生成特征表达式配置</li>\n</ol>\n<ol>\n<li><strong>构建 1 个标签</strong>：通过 <code>get_label_config()</code> 方法生成标签表达式</li>\n</ol>\n<ul>\n<li>默认标签表达式：<code>Ref($close, -2)/Ref($close, -1) - 1</code></li>\n</ul>\n<ol>\n<li><strong>数据预处理流程</strong>：</li>\n</ol>\n<ul>\n<li>通过 <code>D.features</code> 计算表达式，生成原始数据（raw）</li>\n<li>在 <code>DataHandlerLP.process_data()</code> 方法中应用数据处理器：</li>\n<li><strong>infer_processors=[]</strong>：</li>\n<li>作用：处理特征数据，用于实际预测</li>\n<li>Alpha158默认不处理特征（因为特征已在表达式层面相对化，如<code>KMID: ($close-$open)/$open</code>）</li>\n<li><strong>learn_processors=[DropnaLabel, CSZScoreNorm]</strong>：</li>\n<li>作用：处理标签数据，用于模型训练</li>\n<li><code>DropnaLabel</code>：删除标签为 NaN 的样本</li>\n<li><code>CSZScoreNorm</code>：对标签进行横截面标准化（只处理标签，不处理特征），即对每个交易日内的所有股票标签进行 Z-score 标准化，使每日标签均值为 0、标准差为 1。</li>\n<li>处理流程：<code>raw → shared_processors → infer_processors → _infer → learn_processors → _learn</code></li>\n<li>生成三份数据：_data（原始数据 &#x27;raw&#x27;）、_infer（推理用处理后数据）、_learn（训练用处理后数据）</li>\n</ul>\n<p><strong>理解 DataHandler 的三种数据模式</strong>：</p>\n<p>DataHandler 在初始化后会生成三种不同处理阶段的数据（raw、infer、learn），它们分别用于不同的场景。</p>\n<p><strong>为什么需要区分这三种数据？</strong></p>\n<ul>\n<li><strong>训练时需要 learn 模式</strong>：标签经过横截面标准化，便于模型学习相对强弱关系</li>\n<li><strong>预测时需要 infer 模式</strong>：标签保持原始值，便于评估预测效果</li>\n<li><strong>查看原始数据 raw</strong>：了解数据的原始分布和特征表达式</li>\n</ul>\n<p><strong>为什么使用横截面标准化？</strong></p>\n<ol>\n<li><strong>消除市场整体波动影响</strong>：不同交易日市场整体涨跌不同，横截面标准化使每日标签分布一致</li>\n<li><strong>便于模型训练</strong>：标准化后的标签分布更稳定，有利于模型学习相对强弱关系</li>\n<li><strong>保持相对排序</strong>：标准化不改变股票间的相对排序，只调整分布</li>\n</ol>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "特征(因子)查看",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 48,
+              "source": "# 从handler中获取因子配置\nfields, names = handler.get_feature_config()\n\n# 创建因子名称到表达式的映射\nfactor_dict = dict(zip(names, fields))",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 49,
+              "source": "# 查看特定因子\nprint(f\"KMID: {factor_dict.get('KMID', '未找到')}\")\nprint(f\"MA5: {factor_dict.get('MA5', '未找到')}\")",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 50,
+              "source": "# 查看所有因子的表达式\nfor name, expr in factor_dict.items():\n    print(f\"{name}: {expr}\")",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 51,
+              "source": "# 获取实际的 feaure 数据\nfeatures = handler.fetch(col_set=\"feature\")\nfeatures.head()",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 4,
+          "exercise": false
+        },
+        {
+          "title": "标签查看",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 53,
+              "source": "# 查看 label 配置\nprint(handler.get_label_config())",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 54,
+              "source": "# 获取实际的 label 数据\nlabels = handler.fetch(col_set=\"label\")\nlabels.head()",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "数据预处理",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 56,
+              "source": "# ============================================\n# 直接从 DataHandler 获取三种数据\n# ============================================\nraw_data = handler.fetch(data_key=\"raw\")\nprint(\"原始数据形状:\", raw_data.shape)\ndisplay(raw_data.head(2))\n\n# 获取处理后的推理数据\ninfer_data = handler.fetch(data_key=\"infer\")\nprint(\"\\n推理数据形状:\", infer_data.shape)\ndisplay(infer_data.head(2))\n\n# 获取处理后的学习数据\nlearn_data = handler.fetch(data_key=\"learn\")\nprint(\"\\n学习数据形状:\", learn_data.shape)\ndisplay(learn_data.head(2))",
+              "lineCount": 16,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "课后作业（2）：理解三种数据模式（raw / infer / learn）",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>请先运行下方代码，观察 <code>raw_data</code>、<code>infer_data</code>、<code>learn_data</code> 的统计信息，然后用文字总结你的理解。</p>\n<ol>\n<li><strong>获取并阅读统计信息：</strong></li>\n</ol>\n<ul>\n<li>三种数据的形状（<code>shape</code>）</li>\n<li>总缺失值数量</li>\n<li>标签 <code>LABEL0</code> 的均值和标准差</li>\n</ul>\n<ol>\n<li><strong>请用自己的话总结：</strong></li>\n</ol>\n<ul>\n<li>你从这些统计结果中看出了哪些差异？</li>\n<li>这些差异分别说明了什么？你觉得它们会对后续模型训练或预测产生哪些影响？</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 58,
+              "source": "# 对比三种数据的差异\n\nprint(\"数据形状对比:\")\n# 请补充代码\n\nprint(\"\\n缺失值对比:\")\n# 请补充代码\n\nprint(\"\\n标签统计对比:\")\n# 请补充代码",
+              "lineCount": 10,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": true,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": true
+        },
+        {
+          "title": "4.2 配置数据集（DatasetH）",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>数据集（DatasetH）将数据按时间分割成训练集、验证集和测试集。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 60,
+              "source": "# ==================== 初始化数据集 ====================\n# DatasetH 将数据按时间分割成训练集、验证集和测试集\nfrom qlib.data.dataset import DatasetH\n\ndataset = DatasetH(\n    # handler：数据处理器实例（上面创建的 Alpha158）\n    handler=handler,\n    \n    # segments：数据分割配置，按时间顺序分割\n    # 重要：必须按时间顺序分割（训练集 → 验证集 → 测试集），不能打乱顺序\n    segments={\n        \"train\": (\"2008-01-01\", \"2014-12-31\"),  # 训练集：用于训练模型\n        \"valid\": (\"2015-01-01\", \"2016-12-31\"),  # 验证集：用于调整参数，防止过拟合\n        \"test\": (\"2017-01-01\", \"2020-08-01\"),   # 测试集：用于最终评估\n    },\n)\n\n# ============================================\n# 时间范围关系说明\n# ============================================\n# \n# 时间轴示意图：\n# \n# 2008-01-01                           2014-12-31    2016-12-31    2020-08-01\n#     |                                     |             |             |\n#     |<-------- start_time --------------- |-------------|-------------|<- end_time\n#     |                                     |             |             |\n#     |<------------- fit ----------------->|             |             |\n#     |                                     |             |             |\n#     |<------------- train --------------->|             |             |\n#     |                                     |<---valid--->|             |\n#     |                                     |             |<---test---->|\n#\n# 关键点：\n# 1. start_time 和 end_time 定义了数据加载的总体范围\n# 2. fit_start_time 和 fit_end_time 定义了归一化参数计算的时间段\n# 3. 实际的数据分割（train/valid/test）在 segments 中定义\n# 4. fit 时间段应该只包含训练集，避免数据泄露\n# ============================================",
+              "lineCount": 39,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>DatasetH 的工作原理</strong>：</p>\n<p><code>DatasetH</code> 是带数据处理器（DataHandler）的数据集类，作为数据处理器与模型训练之间的桥梁。</p>\n<ul>\n<li>它通过 <code>segments</code> 字典管理数据分段（如 &#x27;train&#x27;、&#x27;valid&#x27;、&#x27;test&#x27;）</li>\n<li>将数据预处理逻辑委托给内部的 <code>DataHandler</code> 实例</li>\n<li>当调用 <code>prepare</code> 方法时，会根据传入的 segment 名称从 <code>segments</code> 中查找对应的时间范围</li>\n<li>然后通过内部的 <code>_prepare_seg</code> 方法调用 <code>handler.fetch</code> 获取处理后的数据</li>\n</ul>\n<p>这种设计将数据预处理（由 Handler 负责）与数据分段管理（由 DatasetH 负责）分离，使得用户可以通过简单的 segment 名称（如 <code>prepare(&#x27;train&#x27;)</code>）灵活获取不同阶段的数据。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 62,
+              "source": "# ============================================\n# 1. 查看单个时间段的数据\n# ============================================\ntrain_df = dataset.prepare(\"train\", data_key='learn')\n# 等价于同时获取特征和标签，即\n# train_df = dataset.prepare(\"train\", col_set=[\"feature\", \"label\"], data_key='learn')\nprint(\"训练集形状:\", train_df.shape)\nprint(\"\\n训练集前5行:\")\ndisplay(train_df.head())\nprint(\"\\n训练集列名:\")\nprint(train_df.columns)\n\ntrain_df = dataset.prepare(\"train\", data_key='raw')\n# 等价于同时获取特征和标签，即\n# train_df = dataset.prepare(\"train\", col_set=[\"feature\", \"label\"], data_key='learn')\nprint(\"训练集形状:\", train_df.shape)\nprint(\"\\n训练集前5行:\")\ndisplay(train_df.head())\nprint(\"\\n训练集列名:\")\nprint(train_df.columns)",
+              "lineCount": 20,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 63,
+              "source": "# ============================================\n# 2. 查看多个时间段的数据\n# ============================================\ntrain_df, valid_df, test_df = dataset.prepare([\"train\", \"valid\", \"test\"])\nprint(\"\\n数据集划分:\")\nprint(f\"训练集: {train_df.shape}\")\nprint(f\"验证集: {valid_df.shape}\")\nprint(f\"测试集: {test_df.shape}\")",
+              "lineCount": 8,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 64,
+              "source": "# ============================================\n# 3. 查看特征和标签\n# ============================================\n# 只获取特征\nfeatures_df = dataset.prepare(\"train\", col_set=\"feature\")\nprint(\"\\n特征数据形状:\", features_df.shape)\n\n# 只获取标签\nlabel_df = dataset.prepare(\"train\", col_set=\"label\")\nprint(\"\\n标签数据形状:\", label_df.shape)",
+              "lineCount": 10,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 4,
+          "exercise": false
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "title": "训练预测模型",
+      "cellRange": [
+        65,
+        70
+      ],
+      "stats": {
+        "markdown": 4,
+        "code": 2,
+        "exercises": 0
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将使用机器学习模型来学习特征和标签之间的关系，从而预测股票的未来收益。</p>\n<p><strong>学习目标</strong>：</p>\n<ul>\n<li>理解模型训练的基本流程</li>\n<li>理解实验记录器（Recorder）的作用</li>\n<li>掌握如何训练和保存模型</li>\n</ul>"
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>示例任务</strong></p>\n<ul>\n<li>使用LightGBM模型训练跨日收益预测模型，学习Alpha158特征与未来收益之间的关系</li>\n</ul>\n<p><em>模型选择：LightGBM（LGBModel）</em></p>\n<ul>\n<li>LightGBM是微软开发的梯度提升决策树（GBDT）框架，具有训练速度快、内存占用低、准确率高等特点</li>\n<li>本任务使用Qlib提供的<code>LGBModel</code>封装，支持自动早停等功能</li>\n</ul>\n<p><em>训练流程</em></p>\n<ul>\n<li>使用训练集（2008-2014）训练模型，学习特征与标签的映射关系</li>\n<li>使用验证集（2015-2016）进行早停（Early Stopping），防止过拟合</li>\n<li>模型训练完成后保存到实验记录器（Recorder），便于后续加载和使用</li>\n</ul>\n<p><em>实验记录</em></p>\n<ul>\n<li>使用Qlib的workflow模块记录训练过程，包括超参数、训练指标、模型文件等</li>\n<li>便于实验对比、模型管理和结果复现</li>\n</ul>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "5.1 模型和数据集配置",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将配置LightGBM模型和数据集。</p>\n<p><strong>配置说明</strong>：</p>\n<ol>\n<li><strong>模型（model）</strong>：定义机器学习模型的类型和超参数</li>\n</ol>\n<ul>\n<li>本教程使用 <code>LGBModel</code>（LightGBM梯度提升树模型）</li>\n<li>超参数包括：学习率、树深度、正则化系数、采样比例等</li>\n<li>这些参数控制模型的复杂度和训练过程，影响模型的预测能力</li>\n</ul>\n<ol>\n<li><strong>数据集（dataset）</strong>：定义训练、验证和测试数据的时间范围</li>\n</ol>\n<ul>\n<li>使用之前配置的 <code>Alpha158</code> 数据处理器</li>\n<li>将数据分为三个时间段：训练集、验证集、测试集</li>\n<li>训练集用于模型学习，验证集用于早停防止过拟合，测试集用于最终评估</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 68,
+              "source": "# 使用配置字典定义模型和数据集参数，便于管理和复现\ntask = {\n    \"model\": {\n        \"class\": \"LGBModel\",\n        \"module_path\": \"qlib.contrib.model.gbdt\",\n        \"kwargs\": {\n            \"loss\": \"mse\",                    # 均方误差损失函数\n            \"colsample_bytree\": 0.8879,        # 特征采样比例（每棵树使用的特征比例）\n            \"learning_rate\": 0.0421,           # 学习率（控制每轮迭代的步长）\n            \"subsample\": 0.8789,               # 样本采样比例（每棵树使用的样本比例）\n            \"lambda_l1\": 205.6999,             # L1 正则化系数（防止过拟合）\n            \"lambda_l2\": 580.9768,             # L2 正则化系数（防止过拟合）\n            \"max_depth\": 8,                    # 树的最大深度\n            \"num_leaves\": 210,                 # 叶子节点数（控制模型复杂度）\n            \"num_threads\": max(1, min(4, os.cpu_count() or 2)),                 # 线程数（并行训练）\n        },\n    },\n    \"dataset\": {\n        \"class\": \"DatasetH\",\n        \"module_path\": \"qlib.data.dataset\",\n        \"kwargs\": {\n            \"handler\": {\n                \"class\": \"Alpha158\",\n                \"module_path\": \"qlib.contrib.data.handler\",\n                \"kwargs\": data_handler_config,  # 使用之前配置的数据处理器\n            },\n            \"segments\": {\n                \"train\": (\"2008-01-01\", \"2014-12-31\"),  # 训练集：7年数据\n                \"valid\": (\"2015-01-01\", \"2016-12-31\"),  # 验证集：2年数据（用于早停）\n                \"test\": (\"2017-01-01\", \"2020-08-01\"),   # 测试集：3.5年数据（用于最终评估）\n            },\n        },\n    },\n}\n\n# 使用配置初始化模型和数据集\nmodel = init_instance_by_config(task[\"model\"])\ndataset = init_instance_by_config(task[\"dataset\"])",
+              "lineCount": 38,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "5.2 模型训练流程",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将使用Qlib的workflow模块进行模型训练。训练过程包括：创建实验并记录配置参数、执行模型训练（自动早停）、保存训练好的模型，并获取实验ID用于后续加载和回测。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 70,
+              "source": "# 使用 Qlib 的 workflow 模块进行模型训练和实验管理\nwith R.start(experiment_name=\"train_model\"):\n    # 步骤 1：记录所有配置参数（模型超参数、数据集配置等）\n    R.log_params(**flatten_dict(task))\n    \n    # 步骤 2：训练模型\n    # 内部流程：准备数据 → 设置回调 → 执行训练 → 早停判断\n    model.fit(dataset)\n    \n    # 步骤 3：保存训练好的模型到实验记录中\n    R.save_objects(trained_model=model)\n    \n    # 步骤 4：获取实验ID，用于后续加载模型或关联分析\n    rid = R.get_recorder().id",
+              "lineCount": 14,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "title": "预测、回测与分析",
+      "cellRange": [
+        71,
+        76
+      ],
+      "stats": {
+        "markdown": 4,
+        "code": 2,
+        "exercises": 0
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将使用训练好的模型进行预测，然后将预测结果转化为交易策略，并在历史数据上进行回测。</p>\n<p><strong>学习目标</strong>：</p>\n<ul>\n<li>理解如何将模型预测转化为交易信号</li>\n<li>了解交易策略的工作原理</li>\n<li>掌握回测的基本流程</li>\n<li>理解 SignalRecord 和 PortAnaRecord 的工作机制</li>\n</ul>"
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>示例任务</strong></p>\n<ul>\n<li>使用训练好的模型生成交易信号，执行TopKDropout选股策略，并在历史数据上进行回测分析</li>\n</ul>\n<p><strong>交易策略：TopKDropoutStrategy</strong></p>\n<ul>\n<li><strong>TopK持仓</strong>：每个交易日进行调仓，始终保持投资组合中有topk只股票（本任务中topk=50）</li>\n<li><strong>Dropout机制</strong>：</li>\n<li><strong>步骤1：计算买入候选股票池</strong></li>\n<li>从未持仓股票中，选择预测分数最高的候选股票</li>\n<li>候选池大小 = <code>n_drop + topk - 当前持仓数量</code></li>\n<li><strong>步骤2：确定卖出股票（防止&quot;卖高买低&quot;）</strong></li>\n<li>将当前持仓股票与买入候选股票池合并，按预测分数从高到低排序</li>\n<li>从合并列表的最后n_drop只中，找出属于当前持仓的股票</li>\n<li>这些股票即为需要卖出的（当前持仓中分数最低的，最多n_drop只）</li>\n<li><strong>为什么要合并比较？</strong> 确保不会卖出分数高于候选股票的持仓股票，避免&quot;卖高买低&quot;</li>\n<li><strong>步骤3：确定买入股票</strong></li>\n<li>实际买入数量 = <code>卖出数量 + (topk - 当前持仓数量)</code></li>\n<li>从候选股票池中选择分数最高的股票进行买入，确保调仓后持仓数量 = topk</li>\n<li><strong>固定换手率</strong>：当持仓数量等于topk时，通过每天替换n_drop只股票，实现相对固定的换手率，便于控制交易成本</li>\n<li><strong>等权重分配</strong>：对选中的股票进行等权重配置，简化资金管理</li>\n<li><strong>策略逻辑</strong>：</li>\n<li>预测得分高的股票未来收益更高</li>\n<li>通过定期替换表现较差的股票，保持投资组合的质量</li>\n<li>卖出方式（method_sell）：默认&quot;bottom&quot;，卖出持仓中排名最差的股票</li>\n<li>买入方式（method_buy）：默认&quot;top&quot;，买入未持有中排名最好的股票</li>\n<p>!<a href=\"https://fsj0621.github.io/images/topk_drop.png\" target=\"_blank\" rel=\"noopener\">TopkDropoutStrategy</a></p>\n</ul>\n<p><em>回测执行流程</em></p>\n<ul>\n<li><strong>加载模型</strong>：从训练实验中获取已训练的模型</li>\n<li><strong>信号生成</strong>：使用模型对测试集进行预测，得到每只股票在每个交易日的预测得分，SignalRecord 将预测结果保存为交易信号</li>\n<li><strong>策略执行</strong>：TopKDropoutStrategy根据预测得分选择股票，生成交易订单</li>\n<li><strong>模拟交易</strong>：SimulatorExecutor模拟交易执行过程，包括订单处理、成交价格、交易成本等</li>\n<li><strong>结果记录</strong>：PortAnaRecord记录回测过程中的所有数据，包括持仓、收益、成本等</li>\n</ul>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "6.1 回测参数配置",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将配置回测所需的参数，包括执行器、交易策略和回测参数。</p>\n<p><strong>配置说明</strong>：</p>\n<ol>\n<li><strong>执行器（executor）</strong>：负责模拟交易执行过程</li>\n</ol>\n<ul>\n<li>处理订单生成、成交模拟、持仓管理等</li>\n<li>模拟真实交易环境，包括交易成本、涨跌停限制等</li>\n</ul>\n<ol>\n<li><strong>交易策略（strategy）</strong>：定义如何根据模型预测进行选股和调仓</li>\n</ol>\n<ul>\n<li>本教程使用 <code>TopkDropoutStrategy</code>：始终保持 topk 只股票</li>\n<li>每个交易日淘汰表现最差的股票，买入排名靠前的股票</li>\n</ul>\n<ol>\n<li><strong>回测参数（backtest）</strong>：定义回测的基本设置</li>\n</ol>\n<ul>\n<li>回测时间范围、初始资金、基准指数</li>\n<li>交易规则：交易频率、涨跌幅限制、交易成本等</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 74,
+              "source": "port_analysis_config = {\n    # ==================== 执行器配置 ====================\n    # 执行器负责模拟交易执行过程，包括订单处理、成交模拟等\n    \"executor\": {\n        \"class\": \"SimulatorExecutor\",                    # 使用模拟执行器\n        \"module_path\": \"qlib.backtest.executor\",         # 执行器模块路径\n        \"kwargs\": {\n            \"time_per_step\": \"day\",                      # 每步时间间隔：一天\n            \"generate_portfolio_metrics\": True,          # 生成投资组合指标\n        },\n    },\n    \n    # ==================== 交易策略配置 ====================\n    # TopkDropoutStrategy：基于排名的选股策略\n    \"strategy\": {\n        \"class\": \"TopkDropoutStrategy\",                  # 使用TopK淘汰策略\n        \"module_path\": \"qlib.contrib.strategy.signal_strategy\",  # 策略模块路径\n        \"kwargs\": {\n            \"model\": model,                              # 使用的预测模型\n            \"dataset\": dataset,                          # 数据集\n            \"topk\": 50,                                  # 选择前50只股票\n            \"n_drop\": 5,                                 # 淘汰5只表现最差的股票\n        },\n    },\n    \n    # ==================== 回测参数配置 ====================\n    # 定义回测的时间范围、初始资金、基准指数和交易规则\n    \"backtest\": {\n        \"start_time\": \"2017-01-01\",                      # 回测开始时间\n        \"end_time\": \"2020-08-01\",                        # 回测结束时间\n        \"account\": 100000000,                            # 初始资金：1亿元\n        \"benchmark\": benchmark,                          # 基准指数（沪深300指数）\n        \"exchange_kwargs\": {\n            \"freq\": \"day\",                               # 交易频率：日频\n            \"limit_threshold\": 0.095,                    # 涨跌幅限制阈值：9.5%\n            \"deal_price\": \"close\",                       # 成交价格：收盘价\n            \"open_cost\": 0.0005,                         # 开仓交易成本：0.05%\n            \"close_cost\": 0.0015,                        # 平仓交易成本：0.15%\n            \"min_cost\": 5,                               # 最小交易成本：5元\n        },\n    },\n}",
+              "lineCount": 42,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "6.2 回测分析执行",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将执行完整的回测流程：加载训练好的模型、生成交易信号、执行回测策略并生成分析报告。</p>\n<h5>关键组件</h5>\n<ul>\n<li><strong>SignalRecord</strong>：模型预测 → 生成选股信号 → 保存 <code>pred.pkl</code> 和 <code>label.pkl</code></li>\n<li><strong>PortAnaRecord</strong>：加载预测信号 → 执行回测 → 风险与指标分析 → 保存回测报告、持仓、风险分析、指标分析等文件</li>\n<li><strong>数据传递机制</strong>：两者通过共享同一个 <code>recorder</code> 实例来传递数据</li>\n</ul>\n<h5>SignalRecord.generate() - 生成预测信号</h5>\n<p><strong>作用</strong>：使用模型对数据集进行预测，生成选股信号（股票得分）</p>\n<p><strong>使用方式</strong>：</p>\n<pre><code>sr = SignalRecord(model, dataset, recorder)\nsr.generate()</code></pre>\n<p><strong>内部执行流程</strong>：</p>\n<ol>\n<li><strong>调用模型预测</strong></li>\n</ol>\n<ul>\n<li>调用 <code>model.predict(dataset, segment=&quot;test&quot;)</code> 生成预测</li>\n<li>默认使用 <code>segment=&quot;test&quot;</code>（对应 <code>dataset.segments</code> 中定义的测试集时间段）</li>\n<li>使用infer 模式，数据经过 <code>shared_processors + infer_processors</code> 处理</li>\n</ul>\n<ol>\n<li><strong>生成预测结果</strong></li>\n</ol>\n<ul>\n<li>对测试集的所有交易日进行预测</li>\n<li>返回每只股票在每个交易日的预测分数（日频数据）</li>\n<li>如果返回 <code>pd.Series</code>，会自动转换为 <code>pd.DataFrame</code>，列名为 <code>&quot;score&quot;</code></li>\n</ul>\n<ol>\n<li><strong>保存预测结果到 recorder</strong></li>\n</ol>\n<ul>\n<li>将预测结果保存为 <code>pred.pkl</code></li>\n<li>将真实标签保存为 <code>label.pkl</code></li>\n</ul>\n<h5>PortAnaRecord.generate() - 执行回测分析</h5>\n<p><strong>作用</strong>：根据预测信号执行回测，计算收益、风险等指标</p>\n<p><strong>使用方式</strong>：</p>\n<pre><code>par = PortAnaRecord(recorder, port_analysis_config, rebalancing_freq)\npar.generate()</code></pre>\n<p><strong>内部执行流程</strong>：</p>\n<ol>\n<li><strong>从 recorder 加载预测信号</strong></li>\n</ol>\n<ul>\n<li>加载 <code>pred.pkl</code>（由 <code>SignalRecord</code> 生成）</li>\n</ul>\n<ol>\n<li><strong>配置执行器（Executor）</strong></li>\n</ol>\n<ul>\n<li>根据 <code>port_analysis_config</code> 创建执行器（如 <code>SimulatorExecutor</code>）</li>\n<li>设置调仓频率（<code>time_per_step</code>，如 <code>&quot;day&quot;</code>、<code>&quot;month&quot;</code>）</li>\n</ul>\n<ol>\n<li><strong>执行回测循环</strong></li>\n<p>在每个调仓日：</p>\n</ol>\n<ul>\n<li>执行器触发调仓</li>\n<li>策略（Strategy）从 <code>pred.pkl</code> 中取出该日期的预测分数</li>\n<li>策略生成交易决策（如选择 topk 只股票）</li>\n<li>订单生成器（OrderGenerator）生成订单列表</li>\n<li>执行器执行订单，更新持仓</li>\n</ul>\n<ol>\n<li><strong>生成回测报告</strong></li>\n</ol>\n<ul>\n<li>计算收益率、风险指标、最大回撤等</li>\n<li>保存持仓数据（<code>positions_normal_{freq}.pkl</code>）</li>\n<li>保存回测报告（<code>report_normal_{freq}.pkl</code>）</li>\n<li>保存投资组合分析（<code>port_analysis_{freq}.pkl</code>）</li>\n<li>保存指标分析（<code>indicator_analysis_{freq}.pkl</code>）</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 76,
+              "source": "with R.start(experiment_name=\"backtest_analysis\"):\n    # ==================== 步骤 1: 加载训练好的模型 ====================\n    # 从之前的训练实验中获取记录器，并加载训练好的模型\n    recorder = R.get_recorder(recorder_id=rid, experiment_name=\"train_model\")\n    model = recorder.load_object(\"trained_model\")\n\n    # ==================== 步骤 2: 获取当前实验的记录器 ====================\n    # 获取当前回测实验的记录器，用于保存回测结果\n    # SignalRecord 和 PortAnaRecord 通过共享同一个 recorder 实例来传递数据\n    recorder = R.get_recorder()\n    ba_rid = recorder.id  # 记录当前记录器ID，用于后续引用\n\n    # ==================== 步骤 3: 生成交易信号 ====================\n    # SignalRecord 会使用模型对数据集进行预测，并将预测结果保存到 recorder\n    sr = SignalRecord(model, dataset, recorder)\n    sr.generate()  # 生成并保存预测信号到 recorder\n\n    # ==================== 步骤 4: 执行回测分析 ====================\n    # PortAnaRecord 会从同一个 recorder 加载预测数据，然后执行回测\n    par = PortAnaRecord(recorder, port_analysis_config, \"day\")\n    par.generate()  # 执行回测分析并生成结果",
+              "lineCount": 21,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "title": "回测结果分析",
+      "cellRange": [
+        77,
+        171
+      ],
+      "stats": {
+        "markdown": 26,
+        "code": 54,
+        "exercises": 2
+      },
+      "groups": [
+        {
+          "title": "本章导入",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将学习如何解读回测结果，理解各种指标的含义。</p>\n<p><strong>学习目标</strong>：</p>\n<ul>\n<li>理解如何从 Recorder 中加载回测数据</li>\n<li>理解各种回测指标的计算方法和含义</li>\n<li>学会解读收益曲线和风险指标</li>\n<li>掌握如何评估策略的表现</li>\n</ul>\n<p><strong>分析内容</strong>：</p>\n<ol>\n<li><strong>数据准备与说明</strong>：了解 Recorder 的作用，学习如何加载回测数据</li>\n<li><strong>回测报告分析</strong>：收益曲线、回撤分析、换手率等关键指标的可视化</li>\n<li><strong>风险分析</strong>：波动率、最大回撤、信息比率等风险指标的详细说明和分析</li>\n<li><strong>模型性能分析</strong>：IC（信息系数）分析，评估模型的预测能力</li>\n</ol>\n<p><strong>注意：</strong> Qlib中所有累计利润指标（如回报、最大回撤）均通过求和计算得出。 这样可以避免指标或图表随时间呈指数级偏斜。</p>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "7.1 数据准备与说明",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在完成回测后，我们需要对结果进行深入分析，以评估策略的表现。qlib 提供了丰富的分析工具，帮助我们理解策略的各个方面。</p>\n<p><strong>Recorder的作用</strong>：</p>\n<ul>\n<li><code>Recorder</code> 是 qlib 的实验记录器，基于 MLflow 实现</li>\n<li>它保存了实验过程中的所有数据：预测结果、回测报告、持仓信息、风险分析等</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 79,
+              "source": "from qlib.contrib.report import analysis_model, analysis_position\nfrom qlib.data import D\nfrom qlib.workflow import R\n# 回测分析辅助函数已在环境准备部分内嵌，无需额外文件。\n\n# 从 recorder 加载数据\nrecorder = R.get_recorder(recorder_id=ba_rid, experiment_name=\"backtest_analysis\")\nprint(recorder)",
+              "lineCount": 8,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "预测数据",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<ul>\n<li>包含模型对每只股票在每个交易日的预测得分</li>\n<li>索引为 MultiIndex (instrument, datetime)</li>\n<li>用于计算 IC 等指标</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 81,
+              "source": "# ==================== 加载预测结果 ====================\npred_df = recorder.load_object(\"pred.pkl\")\n\n# 创建数据概览表格\npred_info = pd.DataFrame({\n    '属性': [\n        '数据形状',\n        '列名',\n        '索引名称',\n        '日期范围（开始）',\n        '日期范围（结束）',\n        '股票数量'\n    ],\n    '值': [\n        f\"{pred_df.shape[0]:,} × {pred_df.shape[1]}\",\n        ', '.join(pred_df.columns.tolist()),\n        ', '.join(pred_df.index.names),\n        str(pred_df.index.get_level_values('datetime').min()),\n        str(pred_df.index.get_level_values('datetime').max()),\n        f\"{len(pred_df.index.get_level_values('instrument').unique()):,}\"\n    ]\n})\npred_info.set_index('属性')\n\nprint(\"\\n【预测数据概览】\")\ndisplay(pred_info)\nprint(\"\\n【预测数据预览（前5行）】\")\ndisplay(pred_df.head(5))",
+              "lineCount": 28,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "回测报告数据",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<ul>\n<li>包含每个交易日的组合表现指标</li>\n<li>主要列：<code>return</code>（组合收益率）、<code>cost</code>（交易成本）、<code>bench</code>（基准收益率）、<code>turnover</code>（换手率）</li>\n<li>用于绘制收益曲线和风险分析</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 83,
+              "source": "# ==================== 加载回测数据 ====================\n# 加载所有回测数据\nreport_normal_df, positions, analysis_df = load_backtest_data(recorder, analysis_freq=\"1day\")\n\n# 获取数据基本信息\ndata_info = get_backtest_data_info(report_normal_df, positions, analysis_df)\n\nprint(\"\\n【回测报告信息】\")\ndisplay(data_info['report_info'])\nprint(\"\\n【回测报告预览（前5行）】\")\ndisplay(report_normal_df.head(5))\nprint(\"\\n【回测报告统计摘要】\")\ndisplay(report_normal_df.describe().style.format('{:.4f}'))",
+              "lineCount": 13,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "持仓信息数据",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<ul>\n<li>字典格式，键为日期，值为该日期的持仓详情</li>\n<li>包含每只股票的持仓数量和权重</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 85,
+              "source": "# ==================== 持仓信息 ====================\nprint(\"\\n【持仓信息概览】\")\ndisplay(data_info['position_info'])",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 86,
+              "source": "# ==================== 查看持仓详情示例 ====================\n# 选择一个日期，查看该日期的持仓情况\nprint(\"\\n【持仓详情预览（示例：第一个日期）】\")\nsample_date = list(positions.keys())[10]\nsample_pos = positions[sample_date]\n\nif hasattr(sample_pos, 'get_stock_list'):\n    stocks = sample_pos.get_stock_list()\n    \n    # 创建持仓信息表格\n    if hasattr(sample_pos, 'get_stock_weight') and len(stocks) > 0:\n        # 获取前10只股票的权重\n        top_stocks = stocks[:10]\n        position_data = {\n            '股票代码': top_stocks,\n            '持仓权重': [sample_pos.get_stock_weight(stock) for stock in top_stocks]\n        }\n        position_df = pd.DataFrame(position_data)\n        position_df['持仓权重(%)'] = position_df['持仓权重'].apply(lambda x: f\"{x*100:.2f}%\")\n        \n        print(f\"\\n【{sample_date} 的持仓详情】\")\n        print(f\"总持仓股票数量: {len(stocks)}\")\n        print(f\"\\n前10只股票持仓情况：\")\n        display(position_df[['股票代码', '持仓权重(%)']].style.format({\n            '持仓权重': '{:.4f}'\n        }))\n    else:\n        print(f\"\\n【{sample_date} 的持仓详情】\")\n        print(f\"持仓股票数量: {len(stocks)}\")\n        print(f\"前10只股票: {stocks[:10]}\")",
+              "lineCount": 30,
+              "collapsed": true,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "风险分析数据",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<ul>\n<li>包含各种风险指标的汇总统计</li>\n<li>用于生成风险分析图表</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 88,
+              "source": "# ==================== 风险分析数据 ====================\nprint(\"\\n【风险分析数据概览】\")\ndisplay(data_info['analysis_info'])\n\nprint(\"\\n【风险分析数据预览】\")\ndisplay(analysis_df)",
+              "lineCount": 6,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "7.2.1 回测报告概述",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>什么是回测报告？</strong></p>\n<ul>\n<li>回测报告包含每个交易日的策略表现数据</li>\n<li>主要指标包括：收益率、交易成本、换手率等</li>\n<li>通过这些数据，我们可以绘制收益曲线，分析策略表现</li>\n</ul>\n<p><strong>回测报告的主要列</strong>：</p>\n<ul>\n<li><code>return</code>：策略收益率（不含成本）</li>\n<li><code>cost</code>：交易成本</li>\n<li><code>bench</code>：基准收益率</li>\n<li><code>turnover</code>：换手率</li>\n</ul>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "7.2.2 回测报告图表",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 92,
+              "source": "# 生成回测报告图表\nanalysis_position.report_graph(report_normal_df)",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>说明</strong>：<code>report_graph</code> 会生成一个包含7个子图的分析图表。下面我们将从这些图表中提取每个子图，单独展示并添加详细说明。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 94,
+              "source": "# ==================== 获取原始figure ====================\nif 'original_fig' not in locals():\n    fig_list = generate_report_graph(report_normal_df, show_notebook=False)\n    original_fig = fig_list[0]",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 95,
+              "source": "# fig_list",
+              "lineCount": 1,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 3,
+          "exercise": false
+        },
+        {
+          "title": "子图1：累计收益曲线对比",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>子图1：累计收益曲线对比 - 说明</strong></p>\n<p><strong>图表说明</strong>：</p>\n<ul>\n<li><strong>蓝色线（cum bench）</strong>：基准累计收益曲线</li>\n<li><strong>橙色线（cum return w/o cost）</strong>：策略累计收益曲线（不含交易成本）</li>\n<li><strong>绿色线（cum return w/ cost）</strong>：策略累计收益曲线（含交易成本）</li>\n</ul>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>基准累计收益：$C_{bench}(t) = \\sum_{i=1}^{t} r_{bench,i}$</li>\n<li>策略累计收益（不含成本）：$C_{strategy}(t) = \\sum_{i=1}^{t} r_{strategy,i}$</li>\n<li>策略累计收益（含成本）：$C_{strategy}^{cost}(t) = \\sum_{i=1}^{t} (r_{strategy,i} - c_i)$</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>收益对比</strong>：观察策略是否跑赢基准</li>\n<li><strong>成本影响</strong>：橙色线与绿色线的差距反映交易成本的影响</li>\n<li><strong>趋势分析</strong>：观察收益曲线的上升趋势和波动情况</li>\n<li><strong>关键时点</strong>：识别收益大幅波动的时间段</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 98,
+              "source": "# ==================== 子图1：累计收益曲线对比 ====================\n# 提取子图\nfig_subplot1 = extract_report_subplot(original_fig, yaxis_name='y', title='累计收益曲线对比', width=1200, height=600)\nfig_subplot1.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 99,
+              "source": "# ==================== 子图1：累计收益数值统计 ====================\n# 分析累计收益\ncum_return_result = analyze_cumulative_return(report_normal_df)\nprint(\"\\n【累计收益统计】\")\ndisplay(cum_return_result['stats'].style.format({'最终值': '{:.4f}'}))",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 100,
+              "source": "cum_return_result['cum_return_wo_cost']",
+              "lineCount": 1,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 3,
+          "exercise": false
+        },
+        {
+          "title": "子图2：最大回撤分析（不含成本）",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>子图2：最大回撤分析（不含成本） - 说明</strong></p>\n<p><strong>图表说明</strong>：</p>\n<ul>\n<li>展示不考虑交易成本的回撤曲线</li>\n<li>回撤曲线使用填充区域显示，便于观察回撤深度</li>\n</ul>\n<p><strong>回撤的计算原理</strong>：</p>\n<p>回撤（Drawdown）衡量从历史最高点到当前点的下跌幅度：</p>\n<p>$$<br>DD_t = C_t - H_t<br>$$</p>\n<p>其中：</p>\n<ul>\n<li>$C_t = \\sum_{i=1}^{t} r_i$ 为累计收益</li>\n<li>$H_t = \\max_{j \\in [1,t]} C_j$ 为历史最高点</li>\n</ul>\n<p>最大回撤（MDD）为所有回撤中的最小值：</p>\n<p>$$<br>MDD = \\min_{t \\in [1,T]} DD_t<br>$$</p>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>回撤幅度</strong>：观察回撤曲线的深度，MDD越小越好</li>\n<li><strong>回撤持续时间</strong>：从峰值到最低点的时间长度</li>\n<li><strong>恢复能力</strong>：观察回撤后的恢复速度</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 103,
+              "source": "# ==================== 子图2：最大回撤分析（不含成本） ====================\n# 提取子图\nfig_subplot2 = extract_report_subplot(original_fig, yaxis_name='y2', title='最大回撤分析（不含成本）', width=1200, height=600)\nfig_subplot2.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 104,
+              "source": "# ==================== 子图2：最大回撤数值统计（不含成本） ====================\n# 分析回撤（不含成本）\ndd_wo = analyze_drawdown(report_normal_df, include_cost=False)\nprint(\"\\n【最大回撤统计（不含成本）】\")\ndisplay(dd_wo['stats'].style.format({'数值': lambda x: f\"{x:.4f}\" if isinstance(x, (int, float)) else str(x)}))",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "子图3：最大回撤分析（含成本）",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 106,
+              "source": "# ==================== 子图3：最大回撤分析（含成本） ====================\n# 提取子图\nfig_subplot3 = extract_report_subplot(original_fig, yaxis_name='y3', title='最大回撤分析（含成本）', width=1200, height=600)\nfig_subplot3.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 107,
+              "source": "# ==================== 子图3：最大回撤数值统计（含成本） ====================\n# 分析回撤（含成本）\ndd_w = analyze_drawdown(report_normal_df, include_cost=True)\nprint(\"\\n【最大回撤统计（含成本）】\")\ndisplay(dd_w['stats'].style.format({'数值': lambda x: f\"{x:.4f}\" if isinstance(x, (int, float)) else str(x)}))",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 108,
+              "source": "# ==================== 回撤对比 ====================\n# 对比含成本和不含成本的回撤\ndrawdown_comparison = compare_drawdown(report_normal_df)\nprint(\"\\n【最大回撤对比（不含成本 vs 含成本）】\")\ndisplay(drawdown_comparison)",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 3,
+          "exercise": false
+        },
+        {
+          "title": "子图4：超额收益曲线",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>子图4：超额收益曲线 - 说明</strong></p>\n<p><strong>图表说明</strong>：</p>\n<ul>\n<li><strong>橙色线（不含成本）</strong>：策略超额收益曲线（不考虑交易成本）</li>\n<li><strong>蓝色线（含成本）</strong>：策略超额收益曲线（考虑交易成本）</li>\n</ul>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>超额收益（不含成本）：$R_{超额,t} = r_{策略,t} - r_{基准,t}$</li>\n<li>超额收益（含成本）：$R_{超额,t}^{cost} = r_{策略,t} - r_{基准,t} - c_t$</li>\n<li>累计超额收益：$C_{超额}(t) = \\sum_{i=1}^{t} R_{超额,i}$</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>超额收益趋势</strong>：观察策略是否持续跑赢基准</li>\n<li><strong>成本影响</strong>：对比含成本和不含成本的超额收益差异</li>\n<li><strong>波动性</strong>：观察超额收益的波动情况</li>\n<li><strong>稳定性</strong>：观察超额收益是否稳定为正</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 111,
+              "source": "# ==================== 子图4：超额收益曲线 ====================\n# 提取子图\nfig_subplot4 = extract_report_subplot(original_fig, yaxis_name='y4', title='超额收益曲线', width=1200, height=600)\nfig_subplot4.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "课后作业（3）： 计算累计超额收益率",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 113,
+              "source": "def analyze_excess_return(report_normal_df: pd.DataFrame) -> pd.DataFrame:\n    \"\"\"课后作业：计算累计、均值与波动率等超额收益统计。\"\"\"\n    # TODO: 请补充代码。返回一个以“指标”为索引、包含“数值”列的 DataFrame。\n    return pd.DataFrame(columns=[\"数值\"]).rename_axis(\"指标\")",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": true,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 114,
+              "source": "# # ==================== 子图4：超额收益数值统计 ====================\n# # 分析超额收益\n# excess_return_stats = analyze_excess_return(report_normal_df)\n# print(\"\\n【超额收益统计】\")\n# display(excess_return_stats.style.format({\n#     '数值': lambda x: f\"{x:.6f}\" if isinstance(x, (int, float)) else str(x)\n# }))",
+              "lineCount": 7,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": true
+        },
+        {
+          "title": "子图5：换手率",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>子图5：换手率 - 说明</strong></p>\n<p><strong>图表说明</strong>：</p>\n<ul>\n<li><strong>蓝色曲线</strong>：每日换手率变化</li>\n</ul>\n<p><strong>换手率的计算公式</strong>：</p>\n<p>$$<br>Turnover_t = \\frac{1}{2} \\sum_{i} |w_{i,t} - w_{i,t-1}|<br>$$</p>\n<p>其中：</p>\n<ul>\n<li>$w_{i,t}$ 为股票 $i$ 在第 $t$ 日的权重</li>\n<li>除以 2 是因为买入和卖出都计算了权重变化，实际换手是总和的一半</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>换手频率</strong>：换手率越高，说明调仓越频繁</li>\n<li><strong>成本影响</strong>：高换手率会增加交易成本（年化换手率 = 平均日换手率 × 252）</li>\n<li><strong>稳定性</strong>：观察换手率的波动情况</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 117,
+              "source": "# ==================== 子图5：换手率 ====================\n# 提取子图\nfig_subplot5 = extract_report_subplot(original_fig, yaxis_name='y5', title='换手率曲线', width=1200, height=600)\nfig_subplot5.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 118,
+              "source": "# ==================== 子图5：换手率数值统计 ====================\n# 分析换手率\nturnover_stats = analyze_turnover(report_normal_df)\nprint(\"\\n【换手率统计】\")\ndisplay(turnover_stats.style.format({'数值': '{:.4f}'}))",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "子图6：超额收益最大回撤数值统计（含成本）",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>子图6：超额收益最大回撤（含成本） - 说明</strong></p>\n<p><strong>图表说明</strong>：</p>\n<ul>\n<li>展示考虑交易成本后的超额收益回撤曲线</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>超额收益回撤</strong>：衡量策略相对基准的回撤情况</li>\n<li><strong>成本影响</strong>：观察成本对超额收益回撤的影响</li>\n<li><strong>回撤恢复</strong>：观察超额收益回撤后的恢复能力</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 121,
+              "source": "# ==================== 子图6：超额收益最大回撤（含成本） ====================\n# 提取子图\nfig_subplot6 = extract_report_subplot(original_fig, yaxis_name='y6', title='超额收益最大回撤（含成本）', width=1200, height=600)\nfig_subplot6.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "课后作业（4）： 计算超额收益最大回撤（含成本）",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 123,
+              "source": "def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:\n    \"\"\"课后作业：计算超额收益最大回撤及其起止日期。\"\"\"\n    # TODO: 请补充代码。当前占位返回值保证“全部运行”不会出现语法错误。\n    empty = pd.DataFrame(columns=[\"数值\"]).rename_axis(\"指标\")\n    return {\"without_cost\": empty}",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": true,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 124,
+              "source": "# # ==================== 子图6：超额收益最大回撤数值统计（含成本） ====================\n# # 分析超额收益回撤\n# excess_dd_result = analyze_excess_return_drawdown(report_normal_df)\n# print(\"\\n【超额收益最大回撤统计（含成本）】\")\n# display(excess_dd_result['with_cost'].style.format({'数值': lambda x: f\"{x:.6f}\" if isinstance(x, (int, float)) else str(x)}))",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": true
+        },
+        {
+          "title": "子图7：超额收益最大回撤（不含成本）",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>子图7：超额收益最大回撤（不含成本） - 说明</strong></p>\n<p><strong>图表说明</strong>：</p>\n<ul>\n<li>展示不考虑交易成本的超额收益回撤曲线</li>\n<li>与含成本的超额收益回撤对比，可以观察成本对回撤的影响</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>超额收益回撤</strong>：衡量策略相对基准的回撤情况</li>\n<li><strong>成本影响</strong>：对比含成本和不含成本的超额收益回撤差异</li>\n<li><strong>回撤恢复</strong>：观察超额收益回撤后的恢复能力</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 127,
+              "source": "# ==================== 子图7：超额收益最大回撤（不含成本） ====================\n# 提取子图\nfig_subplot7 = extract_report_subplot(original_fig, yaxis_name='y7', title='超额收益最大回撤（不含成本）', width=1200, height=600)\nfig_subplot7.show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 1,
+          "exercise": false
+        },
+        {
+          "title": "7.3 风险分析",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>什么是风险分析？</strong></p>\n<ul>\n<li>风险分析评估策略的风险水平</li>\n<li>主要指标包括：波动率、最大回撤、信息比率等</li>\n<li>好的策略不仅要收益高，还要风险可控</li>\n</ul>\n<h5>7.3.1 风险指标说明</h5>\n<hr>\n<h5>标准差（std）</h5>\n<p><strong>定义</strong>：衡量收益率序列的波动性，反映策略收益的稳定性。</p>\n<p><strong>计算公式</strong>：<br>$$\\sigma = \\sqrt{\\text{Var}(r)} = \\sqrt{\\frac{1}{n-1}\\sum_{i=1}^{n}(r_i - \\bar{r})^2}$$</p>\n<p><strong>参数说明</strong>：</p>\n<ul>\n<li>$\\sigma$：标准差</li>\n<li>$r_i$：第 $i$ 期的收益率</li>\n<li>$\\bar{r}$：平均收益率，$\\bar{r} = \\frac{1}{n}\\sum_{i=1}^{n}r_i$</li>\n<li>$n$：收益率序列的长度（样本数量）</li>\n<li>$\\text{Var}(r)$：收益率序列的方差</li>\n</ul>\n<hr>\n<h5>年化收益率（annualized_return）</h5>\n<p><strong>定义</strong>：将日收益率转换为年化收益率，便于不同策略之间的比较。</p>\n<p><strong>计算公式</strong>：<br>$$R_{annual} = \\bar{r} \\times N$$</p>\n<p><strong>参数说明</strong>：</p>\n<ul>\n<li>$R_{annual}$：年化收益率</li>\n<li>$\\bar{r}$：平均日收益率，$\\bar{r} = \\frac{1}{n}\\sum_{i=1}^{n}r_i$</li>\n<li>$N$：年化因子</li>\n<li>日收益率：$N = 252$（一年约252个交易日）</li>\n<li>周收益率：$N = 52$（一年52周）</li>\n<li>月收益率：$N = 12$（一年12个月）</li>\n</ul>\n<hr>\n<h5>信息比率（Information Ratio, IR）</h5>\n<p><strong>定义</strong>：衡量超额收益与超额收益波动性的比值，反映策略在承担单位风险时获得的超额收益。</p>\n<p><strong>计算公式</strong>：<br>$$IR = \\frac{\\bar{R}_{excess}}{\\sigma_{excess}} \\times \\sqrt{N}$$</p>\n<p><strong>参数说明</strong>：</p>\n<ul>\n<li>$IR$：信息比率</li>\n<li>$\\bar{R}_{excess}$：平均超额收益率</li>\n<li>超额收益率 = 策略收益率 - 基准收益率</li>\n<li>$\\bar{R}_{excess} = \\frac{1}{n}\\sum_{i=1}^{n}(r_{strategy,i} - r_{benchmark,i})$</li>\n<li>$\\sigma_{excess}$：超额收益的标准差（波动率）</li>\n<li>$\\sigma_{excess} = \\sqrt{\\frac{1}{n-1}\\sum_{i=1}^{n}(r_{excess,i} - \\bar{R}_{excess})^2}$</li>\n<li>$N$：年化因子（日收益率时 $N = 252$）</li>\n<li>$\\sqrt{N}$：年化调整因子</li>\n</ul>\n<hr>\n<h5>最大回撤（Maximum Drawdown, MDD）</h5>\n<p><strong>定义</strong>：从历史最高点到最低点的最大跌幅，反映策略可能面临的最大损失。</p>\n<p><strong>计算公式</strong>：<br>$$MDD = \\min_{t} (DD_t) = \\min_{t} (C_t - H_t)$$</p>\n<p><strong>参数说明</strong>：</p>\n<ul>\n<li>$MDD$：最大回撤（通常为负值，绝对值越大表示回撤越大）</li>\n<li>$DD_t$：时刻 $t$ 的回撤值</li>\n<li>$C_t$：时刻 $t$ 的累计净值（累计收益）</li>\n<li>$H_t$：时刻 $t$ 之前的历史最高净值，$H_t = \\max_{s \\leq t} C_s$</li>\n</ul>\n<p><strong>回撤率计算公式</strong>：<br>$$DD_t = \\frac{C_t - H_t}{H_t} = \\frac{C_t}{H_t} - 1$$</p>"
+            }
+          ],
+          "codeCount": 0,
+          "exercise": false
+        },
+        {
+          "title": "7.3.2 风险分析图表",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 130,
+              "source": "# 生成风险分析图表\nanalysis_position.risk_analysis_graph(analysis_df, report_normal_df)",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "markdown",
+              "html": "<p><strong>说明</strong>：<code>risk_analysis_graph</code> 会生成一个包含5个子图的风险指标分析图表。下面我们将从这些图表中提取每个子图，单独展示并添加详细说明。</p>"
+            },
+            {
+              "type": "code",
+              "cell": 132,
+              "source": "# ==================== 获取风险分析图表（返回 figure 列表） ====================\n# 获取风险分析图表\nif 'risk_fig_list' not in locals():\n    risk_fig_list, _ = analyze_risk_indicators(analysis_df, report_normal_df, show_notebook=False)",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "风险指标对比图",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>风险指标对比图同时展示四个关键风险指标的对比（不含成本 vs 含成本）：</p>\n<ul>\n<li><strong>标准差（std）</strong>：衡量收益率的波动性，值越大风险越高</li>\n<li><strong>年化收益率（annualized_return）</strong>：将日收益率转换为年化收益率，便于比较</li>\n<li><strong>信息比率（information_ratio）</strong>：衡量超额收益与风险的比值，IR 越高越好</li>\n<li><strong>最大回撤（max_drawdown）</strong>：从历史最高点到最低点的最大跌幅，越小越好</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>风险水平</strong>：标准差和最大回撤反映策略的风险水平，值越小越好</li>\n<li><strong>收益水平</strong>：年化收益率反映策略的收益水平，值越大越好</li>\n<li><strong>风险调整收益</strong>：信息比率反映单位风险下的超额收益，IR &gt; 1 表示策略表现良好，IR &gt; 2 表示策略表现优秀</li>\n<li><strong>成本影响</strong>：对比含成本和不含成本的各项指标，观察交易成本对策略表现的影响</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 134,
+              "source": "# ==================== 风险指标对比图 ====================\n# risk_fig_list[0] 同时展示四个风险指标：标准差、年化收益率、信息比率、最大回撤\n# 每个指标都对比了不含成本和含成本两种情况\nrisk_fig_list[0].update_layout(width=1200, height=600, title='风险指标对比图')\nrisk_fig_list[0].show()",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 135,
+              "source": "# ==================== 风险指标对比图数值统计 ====================\n# 分析风险指标\nrisk_fig_list, risk_summary = analyze_risk_indicators(analysis_df, report_normal_df, show_notebook=False)\nprint(\"\\n【风险指标对比统计】\")\ndisplay(risk_summary.style.format({\n    '标准差': '{:.4f}',\n    '年化收益率': '{:.4f}',\n    '信息比率': '{:.4f}',\n    '最大回撤': '{:.4f}'\n}))",
+              "lineCount": 10,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "月度风险分析图表",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>月度风险分析图表展示四个关键风险指标在每个月的变化趋势，帮助识别策略在不同时间段的表现：</p>\n<ul>\n<li><strong>月度年化收益率</strong>：展示每个月的年化收益率变化趋势，可以观察策略在不同时间段的表现</li>\n<li><strong>月度最大回撤</strong>：展示每个月的最大回撤变化趋势，可以观察策略在不同时间段的风险水平</li>\n<li><strong>月度信息比率</strong>：展示每个月的信息比率变化趋势，可以观察策略在不同时间段的风险调整收益</li>\n<li><strong>月度标准差</strong>：展示每个月的标准差变化趋势，可以观察策略在不同时间段的风险波动</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>时间趋势</strong>：观察各指标的时间变化趋势，识别策略表现较好或较差的时间段</li>\n<li><strong>稳定性</strong>：观察各指标的波动情况，评估策略的稳定性</li>\n<li><strong>周期性</strong>：识别是否存在周期性模式，如季节性效应</li>\n<li><strong>风险控制</strong>：结合多个指标，综合评估风险控制效果</li>\n<li><strong>策略优化</strong>：根据月度表现差异，识别需要优化的时间段或市场环境</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 137,
+              "source": "# ==================== 月度风险分析图表展示 ====================\n# 展示月度风险分析图表\nshow_monthly_risk_charts(risk_fig_list)",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 138,
+              "source": "# ==================== 计算月度风险指标（三种类型对比） ====================\n# 计算月度风险指标\n# 如果monthly_risk_dfs不存在，则计算\nif 'monthly_risk_dfs' not in locals():\n    monthly_risk_result = analyze_monthly_risk(report_normal_df, analysis_df)\n    monthly_risk_dfs = monthly_risk_result['monthly_dfs']",
+              "lineCount": 6,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 139,
+              "source": "# ==================== 月度表现对比（三种类型对比） ====================\n# 获取月度风险分析汇总\nmonthly_summary = show_monthly_risk_summary(monthly_risk_dfs)\n\nprint(\"\\n【月度风险分析汇总（三种类型对比）】\")\nprint(\"=\" * 100)\nfor metric_name, metric_df in monthly_summary.items():\n    print(f\"\\n【{metric_name}】\")\n    print(\"-\" * 80)\n    display(metric_df.style.format('{:.4f}', na_rep=''))",
+              "lineCount": 10,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 140,
+              "source": "# ==================== 月度表现对比（最佳 vs 最差） ====================\n# 获取月度风险分析结果（包含月度对比）\nmonthly_risk_result = analyze_monthly_risk(report_normal_df, analysis_df)\nmonthly_risk_dfs = monthly_risk_result['monthly_dfs']\n\nprint(\"\\n【月度表现对比（最佳 vs 最差，基于含成本信息比率）】\")\ndisplay(monthly_risk_result['monthly_comparison'])",
+              "lineCount": 7,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 141,
+              "source": "# ==================== 月度表现稳定性分析（三种类型对比） ====================\n# 获取稳定性分析结果\nprint(\"\\n【月度表现稳定性分析（三种类型对比）】\")\ndisplay(monthly_risk_result['stability_analysis'].style.format({\n    'IR 均值': '{:.4f}',\n    'IR 标准差': '{:.4f}',\n    'IR 变异系数': '{:.4f}',\n    'IR > 0 的月份占比 (%)': '{:.2f}'\n}))",
+              "lineCount": 9,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 5,
+          "exercise": false
+        },
+        {
+          "title": "7.4 模型性能分析",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p>在这一部分，我们将分析模型的预测能力，评估模型是否有效。</p>\n<p><strong>学习目标</strong>：</p>\n<ul>\n<li>理解 IC（信息系数）的含义和计算方法</li>\n<li>学会评估模型的预测准确性</li>\n<li>了解分组收益分析的方法</li>\n<li>掌握模型性能评估的关键指标</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 143,
+              "source": "# 准备预测和标签数据\nlabel_df = dataset.prepare(\"test\", col_set=\"label\")\nlabel_df.columns = [\"label\"]",
+              "lineCount": 3,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 144,
+              "source": "# 合并预测和标签\npred_label = pd.concat([label_df, pred_df], axis=1, sort=True).reindex(label_df.index)\nprint(f\"预测标签数据形状: {pred_label.shape}\")\ndisplay(pred_label.head())",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "7.4.1 IC（信息系数）分析",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>IC 的定义</strong>：</p>\n<p>IC（Information Coefficient，信息系数）衡量预测值与真实标签值的相关性，是评估模型预测能力的重要指标。</p>\n<p><strong>为什么需要 IC？</strong></p>\n<p>在量化投资中，我们不仅关心模型的预测准确度，更关心预测值能否有效区分股票的相对强弱。IC 正是衡量这种区分能力的指标：</p>\n<ul>\n<li><strong>IC &gt; 0</strong>：预测得分高的股票，真实收益也较高，模型能够有效识别优质股票</li>\n<li><strong>IC &lt; 0</strong>：预测得分高的股票，真实收益反而较低，模型预测方向错误</li>\n<li><strong>IC ≈ 0</strong>：预测值与真实收益无关，模型无效</li>\n</ul>\n<p><strong>Pearson IC（线性相关性）</strong>：</p>\n<p>对于每个交易日 $t$，计算预测值和标签值的 Pearson 相关系数：</p>\n<p>$$<br>IC_t = \\text{Corr}(\\hat{y}_{i,t}, y_{i,t}) = \\frac{\\text{Cov}(\\hat{y}_{i,t}, y_{i,t})}{\\sigma_{\\hat{y}} \\cdot \\sigma_y}<br>$$</p>\n<p>其中：</p>\n<ul>\n<li>$\\hat{y}_{i,t}$ 为股票 $i$ 在日期 $t$ 的预测值</li>\n<li>$y_{i,t}$ 为股票 $i$ 在日期 $t$ 的真实标签值</li>\n<li>$\\text{Cov}$ 为协方差</li>\n<li>$\\sigma$ 为标准差</li>\n</ul>\n<p>Pearson IC 的特点：</p>\n<ul>\n<li>衡量线性相关性，对异常值敏感</li>\n<li>取值范围：$[-1, 1]$</li>\n<li>适用于预测值和标签值都接近正态分布的情况</li>\n</ul>\n<p><strong>Rank IC（秩相关性）</strong>：</p>\n<p>Rank IC 使用 Spearman 秩相关系数，对异常值更鲁棒：</p>\n<p>$$<br>RankIC_t = \\text{Corr}(\\text{Rank}(\\hat{y}_{i,t}), \\text{Rank}(y_{i,t}))<br>$$</p>\n<p>Rank IC 的特点：</p>\n<ul>\n<li>只关心排序关系，不关心具体数值大小</li>\n<li>对异常值不敏感，更稳健</li>\n<li>在量化投资中更常用，因为选股策略主要依赖排序而非精确预测</li>\n</ul>\n<p><strong>IC 统计指标</strong>：</p>\n<ul>\n<li><strong>IC 均值</strong>：$\\bar{IC} = \\frac{1}{T} \\sum_{t=1}^{T} IC_t$</li>\n<li>衡量模型的平均预测能力</li>\n<li>通常要求 $\\bar{IC} &gt; 0.05$ 才认为模型有效</li>\n</ul>\n<ul>\n<li><strong>IC 标准差</strong>：$\\sigma_{IC} = \\sqrt{\\frac{1}{T-1} \\sum_{t=1}^{T} (IC_t - \\bar{IC})^2}$</li>\n<li>衡量 IC 的波动性</li>\n<li>标准差越小，模型预测越稳定</li>\n</ul>\n<ul>\n<li><strong>ICIR（IC 信息比率）</strong>：$ICIR = \\frac{\\bar{IC}}{\\sigma_{IC}}$</li>\n<li>类似于 Sharpe 比率，衡量风险调整后的预测能力</li>\n<li>ICIR &gt; 1 表示模型预测能力显著且稳定</li>\n<li>是评估模型质量的核心指标</li>\n</ul>\n<ul>\n<li><strong>IC 胜率</strong>：$WinRate = \\frac{1}{T} \\sum_{t=1}^{T} \\mathbf{1}(IC_t &gt; 0) \\times 100\\%$</li>\n<li>表示 IC 为正的交易日占比</li>\n<li>胜率 &gt; 50% 表示模型在多数时间有效</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 146,
+              "source": "# ==================== 生成IC图表 ====================\nanalysis_position.score_ic_graph(pred_label)",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 147,
+              "source": "# ==================== IC（信息系数）计算 ====================\n# 分析IC\nic_result = analyze_ic(pred_label, show_notebook=False)\nic = ic_result['ic']\nrank_ic = ic_result['rank_ic']\n\nprint(\"\\n【IC 统计汇总】\")\ndisplay(ic_result['summary'].style.format({\n    'IC (Pearson)': lambda x: f'{x:.4f}' if abs(x) < 100 else f'{x:.2f}',\n    'Rank IC (Spearman)': lambda x: f'{x:.4f}' if abs(x) < 100 else f'{x:.2f}'\n}))",
+              "lineCount": 11,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 148,
+              "source": "# ==================== IC 分布统计 ====================\n# 获取IC分布统计（已在analyze_ic中计算）\nif 'ic_result' not in locals():\n    ic_result = analyze_ic(pred_label, show_notebook=False)\n    ic = ic_result['ic']\n    rank_ic = ic_result['rank_ic']\n\nprint(\"\\n【IC 分布统计】\")\ndisplay(ic_result['distribution'].style.format('{:.4f}'))",
+              "lineCount": 9,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 3,
+          "exercise": false
+        },
+        {
+          "title": "7.4.2 模型性能分析图表",
+          "cells": [
+            {
+              "type": "code",
+              "cell": 150,
+              "source": "# ==================== 生成模型性能分析图表 ====================\nanalysis_model.model_performance_graph(pred_label)",
+              "lineCount": 2,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 151,
+              "source": "# ==================== 获取模型性能分析图表（返回 figure 列表） ====================\n# 获取模型性能分析图表（已在Cell 140中生成，这里确保变量存在）\nif 'model_fig_list' not in locals():\n    model_fig_list, _ = analyze_group_returns(pred_label, n_groups=5, show_notebook=False)",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "分组收益累计曲线",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>分组收益累计曲线展示5个分组的累计收益变化趋势，直观反映模型的预测能力。</p>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>分组收益：$R_{k,t} = \\frac{1}{|\\text{Group}_k|} \\sum_{i \\in \\text{Group}_k} y_{i,t}$</li>\n<li>累计收益：$C_{k}(t) = \\sum_{i=1}^{t} R_{k,i}$</li>\n</ul>\n<p><strong>解读要点</strong>：</p>\n<ol>\n<li><strong>收益单调性</strong>：理想情况下，Group1（最高分）的累计收益应该最高，Group5（最低分）的累计收益应该最低</li>\n<li><strong>收益差距</strong>：Group1 和 Group5 的累计收益差距越大，说明模型预测能力越强</li>\n</ol>"
+            },
+            {
+              "type": "code",
+              "cell": 154,
+              "source": "# ==================== 分组收益累计曲线 ====================\n# model_fig_list[0] 是分组收益累计曲线图\n\nmodel_fig_list[0].update_layout(width=1200, height=600, title='分组收益累计曲线')\nmodel_fig_list[0].show()",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 155,
+              "source": "# ==================== 分组收益累计曲线数值统计 ====================\n# 分析分组收益\nmodel_fig_list, group_stats = analyze_group_returns(pred_label, n_groups=5, show_notebook=False)\n\nprint(\"\\n【分组收益累计统计（与图表完全对应）】\")\nprint(\"注：此表格包含图表中显示的所有分组（Group1~5、Long-Short、Long-Average）\")\ndisplay(group_stats['cumulative_stats'].style.format({\n    '最终累计收益': '{:.4f}',\n    '日均收益': '{:.6f}',\n    '收益标准差': '{:.6f}'\n}))",
+              "lineCount": 11,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "分组收益分布图",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>分组收益分布图展示 Long-Short（高分组-低分组）和 Long-Average（高分组-市场平均）的收益分布特征。</p>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>Long-Short 收益：$R_{LS,t} = R_{Group1,t} - R_{Group5,t}$</li>\n<li>Long-Average 收益：$R_{LA,t} = R_{Group1,t} - \\bar{R}_t$，其中 $\\bar{R}_t = \\frac{1}{|I|} \\sum_{i \\in I} y_{i,t}$</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 157,
+              "source": "# ==================== 分组收益分布图 ====================\n# model_fig_list[1] 是分组收益分布图（包含 Long-Short 和 Long-Average 两个子图）\nmodel_fig_list[1].update_layout(width=1200, height=600, title='分组收益分布图')\nmodel_fig_list[1].show()",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 158,
+              "source": "# ==================== 分组收益分布数值统计 ====================\n# 获取分组收益分布统计\nprint(\"\\n【分组收益分布统计】\")\ndisplay(group_stats['distribution_stats'].style.format('{:.6f}'))",
+              "lineCount": 4,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "IC柱状图",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>IC柱状图展示每日IC值的变化，可以观察模型预测能力的稳定性。</p>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>IC：$IC_t = \\text{Corr}(\\hat{y}_{i,t}, y_{i,t})$</li>\n<li>Rank IC：$RankIC_t = \\text{Corr}(\\text{Rank}(\\hat{y}_{i,t}), \\text{Rank}(y_{i,t}))$</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 160,
+              "source": "# ==================== IC柱状图 ====================\n# model_fig_list[2] 是IC柱状图\n\nmodel_fig_list[2].update_layout(width=1200, height=600, title='IC柱状图')\nmodel_fig_list[2].show()",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 161,
+              "source": "# ==================== IC柱状图数值统计 ====================\n# 获取IC时间序列统计\nprint(\"\\n【IC时间序列统计】\")\ndisplay(ic_result['time_series'].style.format({\n    'IC (Pearson)': lambda x: f'{x:.4f}' if abs(x) < 100 else f'{x:.2f}',\n    'Rank IC (Spearman)': lambda x: f'{x:.4f}' if abs(x) < 100 else f'{x:.2f}'\n}))",
+              "lineCount": 7,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "月度IC热力图",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>月度IC热力图展示各月份的IC表现，可以识别模型在不同时间段的表现差异。</p>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>月度IC：$\\bar{IC}_m = \\frac{1}{|D_m|} \\sum_{t \\in D_m} IC_t$，其中 $D_m$ 为第 $m$ 个月的所有交易日</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 163,
+              "source": "# ==================== 月度IC热力图 ====================\n# model_fig_list[3] 是月度IC热力图\n\nmodel_fig_list[3].update_layout(width=1200, height=600, title='月度IC热力图')\nmodel_fig_list[3].show()",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 164,
+              "source": "# ==================== 月度IC热力图数值统计 ====================\n# 分析月度IC\nmonthly_ic_matrix, monthly_ic_summary = analyze_monthly_ic(ic)\n\nprint(\"\\n【月度IC热力图数据（年份 x 月份矩阵）】\")\ndisplay(monthly_ic_matrix.style.format('{:.4f}', na_rep=''))\n\nprint(\"\\n【月度IC汇总统计】\")\ndisplay(monthly_ic_summary.style.format({\n    '数值': lambda x: f'{x:.4f}' if abs(x) < 100 else f'{x:.2f}'\n}))",
+              "lineCount": 11,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "IC分布和Q-Q图",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>IC分布和Q-Q图用于分析IC值的分布特征和正态性。</p>\n<p><strong>IC分布图</strong>：</p>\n<ul>\n<li>展示IC值的直方图分布</li>\n<li>可以观察IC值是否接近正态分布</li>\n</ul>\n<p><strong>Q-Q图（分位数-分位数图）</strong>：</p>\n<ul>\n<li>将IC值的分位数与理论正态分布的分位数进行对比</li>\n<li>如果点大致落在一条直线上，说明IC值接近正态分布</li>\n<li>偏离直线表示分布偏离正态分布</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 166,
+              "source": "# ==================== IC分布和Q-Q图 ====================\n# model_fig_list[4] 是IC分布和Q-Q图（包含2个子图）\n\nmodel_fig_list[4].update_layout(width=1200, height=600, title='IC分布和Q-Q图')\nmodel_fig_list[4].show()",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 167,
+              "source": "# ==================== IC分布和Q-Q图数值统计 ====================\n# 分析IC分布的正态性\nic_normality = analyze_ic_normality(ic, rank_ic)\n\nprint(\"\\n【IC分布正态性检验】\")\nprint(\"注：p值 > 0.05 表示不能拒绝正态分布假设\")\ndisplay(ic_normality)\n\n# IC分布统计（已在之前计算，这里显示汇总）\nprint(\"\\n【IC分布统计汇总】\")\ndisplay(ic_result['distribution'].style.format('{:.4f}'))",
+              "lineCount": 11,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        },
+        {
+          "title": "预测自相关性图",
+          "cells": [
+            {
+              "type": "markdown",
+              "html": "<p><strong>图表说明</strong>：<br>预测自相关性图展示模型预测值在时间上的相关性，评估预测的稳定性。</p>\n<p><strong>计算公式</strong>：</p>\n<ul>\n<li>自相关性：$AC_t = \\text{Corr}(\\text{Rank}(\\hat{y}_{i,t}), \\text{Rank}(\\hat{y}_{i,t-1}))$</li>\n</ul>"
+            },
+            {
+              "type": "code",
+              "cell": 169,
+              "source": "# ==================== 预测自相关性图 ====================\n# model_fig_list[5] 是预测自相关性图\n\nmodel_fig_list[5].update_layout(width=1200, height=600, title='预测自相关性图')\nmodel_fig_list[5].show()",
+              "lineCount": 5,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            },
+            {
+              "type": "code",
+              "cell": 170,
+              "source": "# ==================== 预测自相关性图数值统计 ====================\n# 分析预测自相关性\nautocorr_results = analyze_pred_autocorr(pred_label, lag=1)\nautocorr_result = analyze_pred_autocorr_stats(autocorr_results)\n\nprint(\"\\n【预测自相关性统计】\")\ndisplay(autocorr_result['stats'].style.format('{:.6f}'))\n\nprint(\"\\n【预测自相关性分类统计】\")\ndisplay(autocorr_result['category'].style.format({\n    '股票数量': '{:.0f}',\n    '占比 (%)': '{:.2f}'\n}))",
+              "lineCount": 13,
+              "collapsed": false,
+              "omitted": false,
+              "exercise": false,
+              "outputs": []
+            }
+          ],
+          "codeCount": 2,
+          "exercise": false
+        }
+      ]
+    }
+  ]
+}

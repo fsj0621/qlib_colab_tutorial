@@ -31,7 +31,60 @@
   const metrics = (items = []) => items.length ? `<div class="metric-grid">${items.map((item) => `
     <article><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.description)}</span></article>`).join("")}</div>` : "";
 
-  const lesson = (module, index, total, nextModule) => {
+  const notebookOutput = (outputs = []) => outputs.map((output) => `
+    <div class="notebook-output">
+      <div class="cell-label">输出${output.truncated ? "（已截取）" : ""}</div>
+      <pre>${escapeHtml(output.text)}</pre>
+    </div>`).join("");
+
+  const notebookCell = (cell) => {
+    if (cell.type === "markdown") return `<div class="notebook-prose">${cell.html}</div>`;
+    const code = `<pre class="notebook-code"><code>${escapeHtml(cell.source)}</code></pre>`;
+    const codeBody = cell.collapsed ? `
+      <details class="code-fold">
+        <summary>查看代码 · ${escapeHtml(cell.lineCount)} 行</summary>
+        ${code}
+      </details>` : code;
+    return `
+      <article class="notebook-cell ${cell.exercise ? "is-exercise" : ""}">
+        <div class="cell-label"><span>${cell.exercise ? "练习" : "代码"} · Cell ${escapeHtml(cell.cell)}</span>${cell.omitted ? "<span>长辅助函数</span>" : ""}</div>
+        ${codeBody}
+        ${cell.omitted ? '<p class="cell-omitted">这里只展示前 18 行，完整辅助函数请在 Colab 中查看。</p>' : ""}
+        ${notebookOutput(cell.outputs)}
+      </article>`;
+  };
+
+  const notebookWalkthrough = (notebookModule, revision) => {
+    if (!notebookModule) return "";
+    const groups = notebookModule.groups.map((group, index) => `
+      <details class="notebook-step ${group.exercise ? "is-exercise" : ""}" ${index === 0 ? "open" : ""}>
+        <summary>
+          <span><small>${group.exercise ? "课后作业" : `步骤 ${index + 1}`}</small>${escapeHtml(group.title)}</span>
+          <span class="step-meta">${group.codeCount ? `${group.codeCount} 个代码单元` : "讲解"}</span>
+        </summary>
+        <div class="notebook-step-body">${group.cells.map(notebookCell).join("")}</div>
+      </details>`).join("");
+    return `
+      <section class="notebook-walkthrough" aria-label="Notebook 讲解内容">
+        <div class="notebook-walkthrough-heading">
+          <div><span class="lesson-kicker">Notebook Walkthrough</span><h2>跟着 Notebook 讲</h2></div>
+          <span class="source-chip">${escapeHtml(revision)} · Cells ${escapeHtml(notebookModule.cellRange[0])}–${escapeHtml(notebookModule.cellRange[1])}</span>
+        </div>
+        <p class="notebook-lead">教材原文、代码和作业已按 Notebook 小节整理。展开小节即可讲解，实际运行请使用 Colab。</p>
+        <div class="notebook-steps">${groups}</div>
+      </section>`;
+  };
+
+  const teachingGuide = (module) => `
+    <details class="teaching-guide">
+      <summary>教师提示与课堂检查</summary>
+      <div class="teaching-grid">
+        <article><h2>${escapeHtml(module.primary.title)}</h2>${list(module.primary)}</article>
+        <article><h2>${escapeHtml(module.secondary.title)}</h2>${list(module.secondary)}</article>
+      </div>
+    </details>`;
+
+  const lesson = (module, index, total, nextModule, notebookModule, revision) => {
     const id = `module-${module.number}`;
     const next = index < total - 1 ? `<div class="lesson-next"><span>下一节</span><a href="#module-${nextModule.number}">${escapeHtml(nextModule.shortTitle || nextModule.title)} →</a></div>` : "";
     return `
@@ -43,10 +96,8 @@
         <div class="lesson-meta"><span>◷ ${escapeHtml(module.duration)}</span><span>Notebook：${escapeHtml(module.notebookSection)}</span></div>
         <div class="objective-box"><h2>学习目标</h2><ul>${module.objectives.map((item) => `<li>${inline(item)}</li>`).join("")}</ul></div>
         ${metrics(module.metrics)}
-        <div class="teaching-grid">
-          <article><h2>${escapeHtml(module.primary.title)}</h2>${list(module.primary)}</article>
-          <article><h2>${escapeHtml(module.secondary.title)}</h2>${list(module.secondary)}</article>
-        </div>
+        ${notebookWalkthrough(notebookModule, revision)}
+        ${teachingGuide(module)}
         <aside class="teaching-note ${module.note.tone === "warning" ? "warning" : ""}"><strong>${escapeHtml(module.note.title)}</strong><p>${escapeHtml(module.note.text)}</p></aside>
         ${next}
       </section>`;
@@ -74,7 +125,7 @@
     document.querySelectorAll("[data-module-section]").forEach((section) => observer.observe(section));
   };
 
-  const renderCourse = (course) => {
+  const renderCourse = (course, notebookContent) => {
     document.title = course.pageTitle || `${course.title} · 讲解模式`;
     document.querySelector("[data-course-mark]").textContent = course.mark;
     document.querySelector("[data-course-title]").textContent = course.title;
@@ -88,7 +139,15 @@
       </a>`).join("");
     nav.querySelector(".nav-loading").outerHTML = navItems;
 
-    content.innerHTML = course.modules.map((module, index) => lesson(module, index, course.modules.length, course.modules[index + 1])).join("") + `
+    const notebookModules = new Map((notebookContent?.modules || []).map((module) => [Number(module.number), module]));
+    content.innerHTML = course.modules.map((module, index) => lesson(
+      module,
+      index,
+      course.modules.length,
+      course.modules[index + 1],
+      notebookModules.get(Number(module.number)),
+      notebookContent?.revision || course.version
+    )).join("") + `
       <div class="course-finish">
         <div><span class="lesson-kicker">完成课程</span><h2>回到 Notebook 完成练习</h2></div>
         <a class="button button-primary" data-course-colab target="_self" href="#">打开 Colab ↗</a>
@@ -103,7 +162,7 @@
     });
     initializeNavigation();
     if (window.location.hash) {
-      requestAnimationFrame(() => document.querySelector(window.location.hash)?.scrollIntoView());
+      requestAnimationFrame(() => document.getElementById(window.location.hash.slice(1))?.scrollIntoView());
     }
   };
 
@@ -116,7 +175,14 @@
       if (!response.ok) throw new Error(`课程配置加载失败：${response.status}`);
       return response.json();
     })
-    .then(renderCourse)
+    .then((course) => {
+      if (!course.notebookContent) return [course, null];
+      return fetch(course.notebookContent)
+        .then((response) => response.ok ? response.json() : null)
+        .catch(() => null)
+        .then((notebookContent) => [course, notebookContent]);
+    })
+    .then(([course, notebookContent]) => renderCourse(course, notebookContent))
     .catch(() => {
       content.innerHTML = '<div class="tutorial-error"><strong>没有找到这门教程</strong><p>请返回教程中心选择已发布课程。</p><a class="button button-primary" href="courses.html">返回全部教程</a></div>';
       const loading = nav.querySelector(".nav-loading");

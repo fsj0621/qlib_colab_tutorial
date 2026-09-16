@@ -11,6 +11,7 @@
   "release": "v1.0.2",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
+  "notebookContent": "courses/qlib-notebook.json",
   "modules": [
     {
       "number": 1,

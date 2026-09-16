@@ -32,7 +32,18 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 4. 将 Notebook 放入仓库，并确保配置中的下载路径可以访问；
 5. 新教程的讲解地址即为 `tutorial.html?course=qmt`。
 
-课程配置支持模块名称、预计时间、学习目标、两栏讲解内容、提醒信息和绩效指标卡。页面会自动生成侧栏、章节锚点、上一节/下一节导航、Colab 和下载链接。
+课程配置支持模块名称、预计时间、学习目标、授课提示和绩效指标卡。页面会自动生成侧栏、章节锚点、上一节/下一节导航、Colab 和下载链接。
+
+讲解页还可以直接读取 Notebook 整理后的内容。Qlib 教程使用下面的命令，把 Notebook 的章节、教材文字、代码单元和作业标识生成到网页数据中：
+
+```powershell
+python scripts/build_tutorial_content.py `
+  --input "docs/downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" `
+  --output "docs/courses/qlib-notebook.json" `
+  --revision "v1.0.2"
+```
+
+课程配置中的 `notebookContent` 指向生成结果。更新已发布 Notebook 后重新运行此命令，网页讲解内容就会同步更新。
 
 ## 发布到 GitHub Pages
 
