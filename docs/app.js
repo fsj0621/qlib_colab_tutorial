@@ -30,8 +30,10 @@
     const notebookUrl = `${githubUrl}/raw/refs/heads/${branch}/${encodeURI(notebookPath)}`;
     colabLinks.forEach((link) => {
       link.href = colabUrl;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
+      // Some embedded browsers silently block links that open a new tab.
+      // Keep Colab navigation in the current tab so one click always works.
+      link.target = "_self";
+      link.removeAttribute("rel");
     });
     githubLinks.forEach((link) => {
       link.href = githubUrl;
