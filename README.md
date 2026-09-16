@@ -49,7 +49,7 @@ powershell -ExecutionPolicy Bypass -File tools/build_colab_notebook.ps1 `
   -OutputNotebook "notebooks\Qlib量化投资工作流教程_Colab学生版.ipynb"
 ```
 
-生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误。
+生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；生成完成后还会同步一份到 `docs/downloads/`，供网页按钮同源下载。
 
 ## 版权
 

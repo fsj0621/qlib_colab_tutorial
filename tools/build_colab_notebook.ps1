@@ -235,3 +235,10 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 $json = $output | ConvertTo-Json -Depth 100
 [System.IO.File]::WriteAllText($OutputNotebook, $json, [System.Text.UTF8Encoding]::new($false))
 Write-Output "Created $OutputNotebook"
+
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$downloadDirectory = Join-Path $projectRoot 'docs\downloads'
+$downloadNotebook = Join-Path $downloadDirectory 'Qlib量化投资工作流教程_Colab学生版.ipynb'
+New-Item -ItemType Directory -Path $downloadDirectory -Force | Out-Null
+Copy-Item -LiteralPath $OutputNotebook -Destination $downloadNotebook -Force
+Write-Output "Synced download copy to $downloadNotebook"
