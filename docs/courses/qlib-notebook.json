@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "Qlib量化投资工作流教程_Colab学生版.ipynb",
-  "revision": "v1.0.3",
+  "revision": "v1.0.4",
   "cellCount": 172,
   "modules": [
     {
@@ -22,7 +22,7 @@
           "cells": [
             {
               "type": "markdown",
-              "html": "<p>Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地安装 Qlib。下面的初始化单元格会：</p>\n<ul>\n<li>固定使用 Colab 2026.07 运行时（Python 3.12），避免 Qlib 与 Python 3.13 不兼容；</li>\n<li>安装与本教程验证版本一致的 Qlib、Plotly、Statsmodels 和 LightGBM；</li>\n<li>从 Qlib README 当前推荐的社区镜像下载 A 股教学数据；</li>\n<li>将数据解压到 Colab 的 <code>/content/qlib_data/cn_data</code>；</li>\n<li>检查 Python 版本和数据目录是否就绪。</li>\n</ul>\n<blockquote>Colab 虚拟机是临时的。运行时被回收后，依赖与数据需要重新准备。</blockquote>\n<blockquote>本教程采用低内存流程。不要把示例中的小样本改为三份全量数据同时常驻内存。</blockquote>"
+              "html": "<p>Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地安装 Qlib。下面的初始化单元格会：</p>\n<ul>\n<li>固定使用 Colab 2026.07 运行时（Python 3.12），避免 Qlib 与 Python 3.13 不兼容；</li>\n<li>安装与本教程验证版本一致的 Qlib、Plotly、Statsmodels 和 LightGBM；</li>\n<li>从 Qlib README 当前推荐的社区镜像下载 A 股教学数据；</li>\n<li>将数据解压到 Colab 的 <code>/content/qlib_data/cn_data</code>；</li>\n<li>检查 Python 版本和数据目录是否就绪。</li>\n</ul>\n<blockquote>Colab 虚拟机是临时的。运行时被回收后，依赖与数据需要重新准备。</blockquote>\n<blockquote>本教程采用低内存流程。不要把示例中的小样本改为三份全量数据同时常驻内存。</blockquote>\n<p><strong>连接故障快速判断</strong></p>\n<p>如果在执行任何单元格之前就出现 <code>/api/kernelspecs</code> 500，请先新建一个空白 Colab 并运行 <code>print(&quot;ok&quot;)</code>。空白 Notebook 也失败，说明是 Colab 会话、账号配额或网络连接问题，不是本教程代码；请删除当前运行时、重新连接 CPU 运行时后再试。错误链接包含临时运行时令牌，不要公开转发。</p>"
             },
             {
               "type": "code",
@@ -430,8 +430,8 @@
             {
               "type": "code",
               "cell": 43,
-              "source": "# ==================== 数据处理器配置 ====================\n# 配置数据加载和处理的参数\n\ndata_handler_config = {\n    # ========== 数据加载时间范围 ==========\n    # 包含训练+验证+测试的所有数据\n    \"start_time\": \"2008-01-01\",      # 数据起始时间\n    \"end_time\": \"2020-08-01\",        # 数据结束时间\n    \n    # ========== 数据拟合/归一化时间范围 ==========\n    # 应只包含训练集时间段，避免数据泄露\n    \"fit_start_time\": \"2008-01-01\",  # 与训练集起始时间一致\n    \"fit_end_time\": \"2014-12-31\",    # 与训练集结束时间一致\n    \n    # ========== 股票池配置 ==========\n    # instruments：股票池，指定要使用的股票集合\n    # 可选项包括：\n    # - 股票代码列表：[\"SH600000\", \"SZ000001\"]\n    # - 股票池名称：\"csi300\"（沪深300成分股）\n    # - 全部股票：\"all\"\n    \"instruments\": market,            # market = \"csi300\"（沪深300成分股）\n}",
-              "lineCount": 22,
+              "source": "# ==================== 低内存教学配置 ====================\n# 保留完整的测试区间，但缩短训练与归一化区间。\n# 这能显著减少 Alpha158 内部 raw / infer / learn 三份数据的常驻内存。\ndef show_process_memory(stage):\n    \"\"\"显示当前 Python 进程内存，便于区分内存终止与网络断连。\"\"\"\n    try:\n        import psutil\n        rss_gb = psutil.Process().memory_info().rss / (1024 ** 3)\n        print(f\"[内存] {stage}: {rss_gb:.2f} GiB\")\n    except Exception:\n        pass\n\n\nTEACHING_SEGMENTS = {\n    \"train\": (\"2014-01-01\", \"2015-12-31\"),\n    \"valid\": (\"2016-01-01\", \"2016-12-31\"),\n    \"test\": (\"2017-01-01\", \"2020-08-01\"),\n}\n\ndata_handler_config = {\n    \"start_time\": TEACHING_SEGMENTS[\"train\"][0],\n    \"end_time\": TEACHING_SEGMENTS[\"test\"][1],\n    \"fit_start_time\": TEACHING_SEGMENTS[\"train\"][0],\n    \"fit_end_time\": TEACHING_SEGMENTS[\"train\"][1],\n    \"instruments\": market,\n}\n\nprint(\"低内存教学区间:\", TEACHING_SEGMENTS)",
+              "lineCount": 28,
               "collapsed": true,
               "omitted": false,
               "exercise": false,
@@ -444,8 +444,8 @@
             {
               "type": "code",
               "cell": 45,
-              "source": "# ==================== 初始化数据处理器 ====================\nfrom qlib.contrib.data.handler import Alpha158\n\n# Alpha158 是 Qlib 提供的预置数据处理器，自动构建 158 个特征\nhandler = Alpha158(**data_handler_config)",
-              "lineCount": 5,
+              "source": "# ==================== 初始化数据处理器 ====================\nfrom qlib.contrib.data.handler import Alpha158\n\n# Alpha158 是 Qlib 提供的预置数据处理器，自动构建 158 个特征\nhandler = Alpha158(**data_handler_config)\nshow_process_memory(\"Alpha158 初始化后\")",
+              "lineCount": 6,
               "collapsed": false,
               "omitted": false,
               "exercise": false,
@@ -588,9 +588,9 @@
             {
               "type": "code",
               "cell": 60,
-              "source": "# ==================== 初始化数据集 ====================\n# DatasetH 将数据按时间分割成训练集、验证集和测试集\nfrom qlib.data.dataset import DatasetH\n\ndataset = DatasetH(\n    # handler：数据处理器实例（上面创建的 Alpha158）\n    handler=handler,\n    \n    # segments：数据分割配置，按时间顺序分割\n    # 重要：必须按时间顺序分割（训练集 → 验证集 → 测试集），不能打乱顺序\n    segments={\n        \"train\": (\"2008-01-01\", \"2014-12-31\"),  # 训练集：用于训练模型\n        \"valid\": (\"2015-01-01\", \"2016-12-31\"),  # 验证集：用于调整参数，防止过拟合\n        \"test\": (\"2017-01-01\", \"2020-08-01\"),   # 测试集：用于最终评估\n    },\n)\n\n# ============================================\n# 时间范围关系说明\n# ============================================\n# \n# 时间轴示意图：\n# \n# 2008-01-01                           2014-12-31    2016-12-31    2020-08-01\n#     |                                     |             |             |\n#     |<-------- start_time --------------- |-------------|-------------|<- end_time\n#     |                                     |             |             |\n#     |<------------- fit ----------------->|             |             |\n#     |                                     |             |             |\n#     |<------------- train --------------->|             |             |\n#     |                                     |<---valid--->|             |\n#     |                                     |             |<---test---->|\n#\n# 关键点：\n# 1. start_time 和 end_time 定义了数据加载的总体范围\n# 2. fit_start_time 和 fit_end_time 定义了归一化参数计算的时间段\n# 3. 实际的数据分割（train/valid/test）在 segments 中定义\n# 4. fit 时间段应该只包含训练集，避免数据泄露\n# ============================================",
-              "lineCount": 39,
-              "collapsed": true,
+              "source": "# ==================== 初始化数据集 ====================\n# DatasetH 只引用上面已经创建的 Alpha158，不会再复制一套处理器。\nfrom qlib.data.dataset import DatasetH\n\ndataset = DatasetH(handler=handler, segments=TEACHING_SEGMENTS)\n\nprint(\"训练、验证、测试区间按时间顺序排列:\")\nfor segment_name, segment_range in TEACHING_SEGMENTS.items():\n    print(f\"  {segment_name:>5}: {segment_range[0]} → {segment_range[1]}\")",
+              "lineCount": 9,
+              "collapsed": false,
               "omitted": false,
               "exercise": false,
               "outputs": []
@@ -612,7 +612,7 @@
             {
               "type": "code",
               "cell": 63,
-              "source": "# ============================================\n# 2. 依次检查时间段形状，避免三份完整数据同时常驻内存\n# ============================================\nsegment_shapes = {}\nfor segment in (\"train\", \"valid\", \"test\"):\n    segment_frame = dataset.prepare(segment)\n    segment_shapes[segment] = segment_frame.shape\n    del segment_frame\n    gc.collect()\n\nprint(\"\\n数据集划分:\")\nprint(f\"训练集: {segment_shapes['train']}\")\nprint(f\"验证集: {segment_shapes['valid']}\")\nprint(f\"测试集: {segment_shapes['test']}\")",
+              "source": "# ============================================\n# 2. 只读取标签列检查时间段形状\n# ============================================\nsegment_shapes = {}\nfor segment in (\"train\", \"valid\", \"test\"):\n    segment_labels = dataset.prepare(segment, col_set=\"label\")\n    segment_shapes[segment] = (len(segment_labels), len(handler.get_cols(col_set=\"feature\")))\n    del segment_labels\n    gc.collect()\n\nprint(\"\\n数据集划分:\")\nprint(f\"训练集: {segment_shapes['train']}\")\nprint(f\"验证集: {segment_shapes['valid']}\")\nprint(f\"测试集: {segment_shapes['test']}\")",
               "lineCount": 14,
               "collapsed": false,
               "omitted": false,
@@ -673,7 +673,7 @@
             {
               "type": "code",
               "cell": 68,
-              "source": "# 使用配置字典定义模型和数据集参数，便于管理和复现\ntask = {\n    \"model\": {\n        \"class\": \"LGBModel\",\n        \"module_path\": \"qlib.contrib.model.gbdt\",\n        \"kwargs\": {\n            \"loss\": \"mse\",                    # 均方误差损失函数\n            \"colsample_bytree\": 0.8879,        # 特征采样比例（每棵树使用的特征比例）\n            \"learning_rate\": 0.0421,           # 学习率（控制每轮迭代的步长）\n            \"subsample\": 0.8789,               # 样本采样比例（每棵树使用的样本比例）\n            \"lambda_l1\": 205.6999,             # L1 正则化系数（防止过拟合）\n            \"lambda_l2\": 580.9768,             # L2 正则化系数（防止过拟合）\n            \"max_depth\": 8,                    # 树的最大深度\n            \"num_leaves\": 210,                 # 叶子节点数（控制模型复杂度）\n            \"num_threads\": max(1, min(4, os.cpu_count() or 2)),                 # 线程数（并行训练）\n        },\n    },\n    \"dataset\": {\n        \"class\": \"DatasetH\",\n        \"module_path\": \"qlib.data.dataset\",\n        \"kwargs\": {\n            \"handler\": {\n                \"class\": \"Alpha158\",\n                \"module_path\": \"qlib.contrib.data.handler\",\n                \"kwargs\": data_handler_config,  # 使用之前配置的数据处理器\n            },\n            \"segments\": {\n                \"train\": (\"2008-01-01\", \"2014-12-31\"),  # 训练集：7年数据\n                \"valid\": (\"2015-01-01\", \"2016-12-31\"),  # 验证集：2年数据（用于早停）\n                \"test\": (\"2017-01-01\", \"2020-08-01\"),   # 测试集：3.5年数据（用于最终评估）\n            },\n        },\n    },\n}\n\n# 使用配置初始化模型和数据集\nmodel = init_instance_by_config(task[\"model\"])\nprint(\"复用第 4 节已创建的 DatasetH，避免重复加载 Alpha158。\")",
+              "source": "# 使用配置字典定义模型和数据集参数，便于管理和复现\ntask = {\n    \"model\": {\n        \"class\": \"LGBModel\",\n        \"module_path\": \"qlib.contrib.model.gbdt\",\n        \"kwargs\": {\n            \"loss\": \"mse\",                    # 均方误差损失函数\n            \"colsample_bytree\": 0.8879,        # 特征采样比例（每棵树使用的特征比例）\n            \"learning_rate\": 0.0421,           # 学习率（控制每轮迭代的步长）\n            \"subsample\": 0.8789,               # 样本采样比例（每棵树使用的样本比例）\n            \"lambda_l1\": 205.6999,             # L1 正则化系数（防止过拟合）\n            \"lambda_l2\": 580.9768,             # L2 正则化系数（防止过拟合）\n            \"max_depth\": 8,                    # 树的最大深度\n            \"num_leaves\": 210,                 # 叶子节点数（控制模型复杂度）\n            \"num_threads\": max(1, min(4, os.cpu_count() or 2)),                 # 线程数（并行训练）\n        },\n    },\n    \"dataset\": {\n        \"class\": \"DatasetH\",\n        \"module_path\": \"qlib.data.dataset\",\n        \"kwargs\": {\n            \"handler\": {\n                \"class\": \"Alpha158\",\n                \"module_path\": \"qlib.contrib.data.handler\",\n                \"kwargs\": data_handler_config,  # 使用之前配置的数据处理器\n            },\n            \"segments\": {\n                \"train\": TEACHING_SEGMENTS[\"train\"],  # 训练集：2年低内存教学数据\n                \"valid\": TEACHING_SEGMENTS[\"valid\"],  # 验证集：1年数据（用于早停）\n                \"test\": TEACHING_SEGMENTS[\"test\"],   # 测试集：3.5年数据（用于最终评估）\n            },\n        },\n    },\n}\n\n# 使用配置初始化模型和数据集\nmodel = init_instance_by_config(task[\"model\"])\nprint(\"复用第 4 节已创建的 DatasetH，避免重复加载 Alpha158。\")",
               "lineCount": 38,
               "collapsed": true,
               "omitted": false,
@@ -694,8 +694,8 @@
             {
               "type": "code",
               "cell": 70,
-              "source": "# 训练前释放教学展示阶段的 DataFrame，降低 Colab 内存峰值\nimport gc\n\nfor variable_name in [\n    \"features\", \"labels\", \"mode_samples\",\n    \"features_df\", \"label_df\", \"segment_shapes\",\n    \"train_df\", \"valid_df\", \"test_df\",\n    \"raw_data\", \"infer_data\", \"learn_data\",\n]:\n    globals().pop(variable_name, None)\n\ngc.collect()\n\n# 使用 Qlib workflow 记录训练实验\nwith R.start(experiment_name=\"train_model\"):\n    R.log_params(**flatten_dict(task))\n\n    # 复用第 4 节创建的 dataset，不再初始化第二套 Alpha158\n    model.fit(dataset)\n\n    # 训练结束后释放 LightGBM 的训练矩阵，只保留可预测的 Booster\n    if hasattr(model, \"model\") and hasattr(model.model, \"free_dataset\"):\n        model.model.free_dataset()\n    gc.collect()\n\n    R.save_objects(trained_model=model)\n    rid = R.get_recorder().id\n\nprint(f\"模型训练完成，Recorder ID: {rid}\")",
-              "lineCount": 29,
+              "source": "# 训练前释放教学展示阶段的 DataFrame，降低 Colab 内存峰值\nimport gc\n\nfor variable_name in [\n    \"features\", \"labels\", \"mode_samples\",\n    \"features_df\", \"label_df\", \"segment_shapes\",\n    \"train_df\", \"valid_df\", \"test_df\",\n    \"raw_data\", \"infer_data\", \"learn_data\",\n]:\n    globals().pop(variable_name, None)\n\n# raw 数据已经完成教学展示，训练和预测只需要 learn / infer。\n# 删除处理器内部 raw 表可再释放一份完整 Alpha158 数据。\nif hasattr(handler, \"_data\"):\n    del handler._data\n\ngc.collect()\nshow_process_memory(\"训练前（已清理 raw 与演示变量）\")\n\n# 使用 Qlib workflow 记录训练实验\nwith R.start(experiment_name=\"train_model\"):\n    R.log_params(**flatten_dict(task))\n\n    # 复用第 4 节创建的 dataset，不再初始化第二套 Alpha158\n    model.fit(dataset)\n\n    # 训练结束后释放 LightGBM 的训练矩阵，只保留可预测的 Booster\n    if hasattr(model, \"model\") and hasattr(model.model, \"free_dataset\"):\n        model.model.free_dataset()\n    gc.collect()\n    show_process_memory(\"模型训练后\")\n\n    R.save_objects(trained_model=model)\n    rid = R.get_recorder().id\n\nprint(f\"模型训练完成，Recorder ID: {rid}\")",
+              "lineCount": 36,
               "collapsed": true,
               "omitted": false,
               "exercise": false,

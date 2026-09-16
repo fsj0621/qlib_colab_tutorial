@@ -68,6 +68,10 @@ Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地
 
 > Colab 虚拟机是临时的。运行时被回收后，依赖与数据需要重新准备。
 > 本教程采用低内存流程。不要把示例中的小样本改为三份全量数据同时常驻内存。
+
+**连接故障快速判断**
+
+如果在执行任何单元格之前就出现 `/api/kernelspecs` 500，请先新建一个空白 Colab 并运行 `print("ok")`。空白 Notebook 也失败，说明是 Colab 会话、账号配额或网络连接问题，不是本教程代码；请删除当前运行时、重新连接 CPU 运行时后再试。错误链接包含临时运行时令牌，不要公开转发。
 '@
 
 $setup = @'
@@ -150,6 +154,49 @@ $supportHeader = @'
 # 教程辅助函数（从 support/Utils_backtest.py 内嵌，确保 Colab 单文件可运行）
 '@
 
+$handlerConfig = @'
+# ==================== 低内存教学配置 ====================
+# 保留完整的测试区间，但缩短训练与归一化区间。
+# 这能显著减少 Alpha158 内部 raw / infer / learn 三份数据的常驻内存。
+def show_process_memory(stage):
+    """显示当前 Python 进程内存，便于区分内存终止与网络断连。"""
+    try:
+        import psutil
+        rss_gb = psutil.Process().memory_info().rss / (1024 ** 3)
+        print(f"[内存] {stage}: {rss_gb:.2f} GiB")
+    except Exception:
+        pass
+
+
+TEACHING_SEGMENTS = {
+    "train": ("2014-01-01", "2015-12-31"),
+    "valid": ("2016-01-01", "2016-12-31"),
+    "test": ("2017-01-01", "2020-08-01"),
+}
+
+data_handler_config = {
+    "start_time": TEACHING_SEGMENTS["train"][0],
+    "end_time": TEACHING_SEGMENTS["test"][1],
+    "fit_start_time": TEACHING_SEGMENTS["train"][0],
+    "fit_end_time": TEACHING_SEGMENTS["train"][1],
+    "instruments": market,
+}
+
+print("低内存教学区间:", TEACHING_SEGMENTS)
+'@
+
+$datasetInit = @'
+# ==================== 初始化数据集 ====================
+# DatasetH 只引用上面已经创建的 Alpha158，不会再复制一套处理器。
+from qlib.data.dataset import DatasetH
+
+dataset = DatasetH(handler=handler, segments=TEACHING_SEGMENTS)
+
+print("训练、验证、测试区间按时间顺序排列:")
+for segment_name, segment_range in TEACHING_SEGMENTS.items():
+    print(f"  {segment_name:>5}: {segment_range[0]} → {segment_range[1]}")
+'@
+
 $featureSample = @'
 # 获取一个月的特征样本，避免在教学展示阶段复制整套 Alpha158 数据
 sample_period = slice("2019-01-01", "2019-01-31")
@@ -226,13 +273,13 @@ gc.collect()
 
 $segmentShapes = @'
 # ============================================
-# 2. 依次检查时间段形状，避免三份完整数据同时常驻内存
+# 2. 只读取标签列检查时间段形状
 # ============================================
 segment_shapes = {}
 for segment in ("train", "valid", "test"):
-    segment_frame = dataset.prepare(segment)
-    segment_shapes[segment] = segment_frame.shape
-    del segment_frame
+    segment_labels = dataset.prepare(segment, col_set="label")
+    segment_shapes[segment] = (len(segment_labels), len(handler.get_cols(col_set="feature")))
+    del segment_labels
     gc.collect()
 
 print("\n数据集划分:")
@@ -268,7 +315,13 @@ for variable_name in [
 ]:
     globals().pop(variable_name, None)
 
+# raw 数据已经完成教学展示，训练和预测只需要 learn / infer。
+# 删除处理器内部 raw 表可再释放一份完整 Alpha158 数据。
+if hasattr(handler, "_data"):
+    del handler._data
+
 gc.collect()
+show_process_memory("训练前（已清理 raw 与演示变量）")
 
 # 使用 Qlib workflow 记录训练实验
 with R.start(experiment_name="train_model"):
@@ -281,6 +334,7 @@ with R.start(experiment_name="train_model"):
     if hasattr(model, "model") and hasattr(model.model, "free_dataset"):
         model.model.free_dataset()
     gc.collect()
+    show_process_memory("模型训练后")
 
     R.save_objects(trained_model=model)
     rid = R.get_recorder().id
@@ -322,11 +376,25 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
 
         if ($text -match '# 获取实际的 feaure 数据') { $text = $featureSample }
         if ($text -match '# 获取实际的 label 数据') { $text = $labelSample }
+        if ($text -match '# ==================== 数据处理器配置') { $text = $handlerConfig }
+        if ($text -match 'handler = Alpha158\(\*\*data_handler_config\)') {
+            $text = $text.Replace('handler = Alpha158(**data_handler_config)', "handler = Alpha158(**data_handler_config)`nshow_process_memory(`"Alpha158 初始化后`")")
+        }
         if ($text -match '# 直接从 DataHandler 获取三种数据') { $text = $dataModeSamples }
         if ($text -match '# 对比三种数据的差异') { $text = $dataModeExerciseCode }
+        if ($text -match '# ==================== 初始化数据集') { $text = $datasetInit }
         if ($text -match '# 1\. 查看单个时间段的数据') { $text = $datasetSample }
         if ($text -match '# 2\. 查看多个时间段的数据') { $text = $segmentShapes }
         if ($text -match '# 3\. 查看特征和标签') { $text = $featureLabelSamples }
+
+        # task 中的数据集配置与前面的低内存教学区间保持一致。
+        if ($text -match '# 使用配置字典定义模型和数据集参数') {
+            $text = $text.Replace('"train": ("2008-01-01", "2014-12-31")', '"train": TEACHING_SEGMENTS["train"]')
+            $text = $text.Replace('"valid": ("2015-01-01", "2016-12-31")', '"valid": TEACHING_SEGMENTS["valid"]')
+            $text = $text.Replace('"test": ("2017-01-01", "2020-08-01")', '"test": TEACHING_SEGMENTS["test"]')
+            $text = $text.Replace('# 训练集：7年数据', '# 训练集：2年低内存教学数据')
+            $text = $text.Replace('# 验证集：2年数据（用于早停）', '# 验证集：1年数据（用于早停）')
+        }
 
         # task 中保留数据集配置用于实验记录，但训练时复用第 4 节已创建的 dataset。
         $text = $text.Replace('dataset = init_instance_by_config(task["dataset"])', 'print("复用第 4 节已创建的 DatasetH，避免重复加载 Alpha158。")')

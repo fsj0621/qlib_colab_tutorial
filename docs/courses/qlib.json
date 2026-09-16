@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.3",
+  "version": "v1.0.4",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.3",
+  "release": "v1.0.4",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
@@ -46,7 +46,7 @@
       },
       "note": {
         "title": "讲课提醒",
-        "text": "首次运行时间主要消耗在依赖安装和数据下载。不要让学生在这一阶段反复重启运行时。"
+        "text": "首次运行时间主要消耗在依赖安装和数据下载。如果执行任何单元格前就出现 /api/kernelspecs 500，请先用空白 Colab 运行 print(\"ok\")；空白页也失败就不是本教程代码。"
       }
     },
     {
@@ -154,7 +154,7 @@
       "note": {
         "tone": "warning",
         "title": "讲课重点",
-        "text": "模型表现再好，也不能弥补时间穿越。网页展示只读取一个月的小样本；训练时复用同一个 DatasetH，避免 Colab 同时保存多份完整 Alpha158 数据。"
+        "text": "模型表现再好，也不能弥补时间穿越。标准教学版使用 2014–2020 数据，并保留 2017–2020 测试期；训练时复用同一个 DatasetH，避免 Colab 同时保存多套 Alpha158。"
       }
     },
     {
@@ -190,7 +190,7 @@
       },
       "note": {
         "title": "低内存运行",
-        "text": "训练前会自动删除演示阶段的 DataFrame；训练结束后释放 LightGBM 训练矩阵，再保存模型，以降低免费 Colab 的峰值内存。"
+        "text": "训练前会删除演示 DataFrame 和处理器内部 raw 表；训练结束后释放 LightGBM 训练矩阵，再保存模型，以降低免费 Colab 的峰值内存。"
       }
     },
     {

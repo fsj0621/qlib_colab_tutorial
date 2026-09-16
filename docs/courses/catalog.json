@@ -9,7 +9,7 @@
       "summary": "从 A 股数据、Alpha158 因子和 LightGBM，到 TopK 回测与绩效诊断。",
       "modules": 7,
       "duration": "约 3 小时",
-      "version": "v1.0.3",
+      "version": "v1.0.4",
       "landingPage": "index.html",
       "tutorialPage": "tutorial.html?course=qlib",
       "status": "已发布"
