@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.2",
+  "version": "v1.0.3",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.2",
+  "release": "v1.0.3",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
@@ -154,7 +154,7 @@
       "note": {
         "tone": "warning",
         "title": "讲课重点",
-        "text": "模型表现再好，也不能弥补时间穿越。先检查切分边界，再讨论算法精度。"
+        "text": "模型表现再好，也不能弥补时间穿越。网页展示只读取一个月的小样本；训练时复用同一个 DatasetH，避免 Colab 同时保存多份完整 Alpha158 数据。"
       }
     },
     {
@@ -189,8 +189,8 @@
         ]
       },
       "note": {
-        "title": "讨论问题",
-        "text": "如果训练误差持续下降、验证误差开始上升，继续增加树的数量会发生什么？"
+        "title": "低内存运行",
+        "text": "训练前会自动删除演示阶段的 DataFrame；训练结束后释放 LightGBM 训练矩阵，再保存模型，以降低免费 Colab 的峰值内存。"
       }
     },
     {

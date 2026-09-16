@@ -49,7 +49,8 @@ $intro = @'
 1. Notebook 会连接到固定的 Colab 2026.07 运行时（Python 3.12）。
 2. 在顶部菜单选择 **代码执行程序 → 全部运行**。
 3. 首次运行会安装依赖并下载约 464 MB 的教学数据，通常需要数分钟。
-4. 遇到“请补充代码”的单元格时完成练习，再继续后续章节。
+4. 教学展示只读取小时间段样本，并复用同一个 Alpha158 数据集，适配 Colab 标准内存运行时。
+5. 遇到“请补充代码”的单元格时完成练习，再继续后续章节。
 
 > 数据仅用于教学演示，不构成投资建议。Notebook 基于 [Microsoft Qlib v0.9.7 官方示例](https://github.com/microsoft/qlib/blob/v0.9.7/examples/workflow_by_code.ipynb) 改编，沿用 MIT License。
 '@
@@ -66,6 +67,7 @@ Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地
 - 检查 Python 版本和数据目录是否就绪。
 
 > Colab 虚拟机是临时的。运行时被回收后，依赖与数据需要重新准备。
+> 本教程采用低内存流程。不要把示例中的小样本改为三份全量数据同时常驻内存。
 '@
 
 $setup = @'
@@ -148,6 +150,159 @@ $supportHeader = @'
 # 教程辅助函数（从 support/Utils_backtest.py 内嵌，确保 Colab 单文件可运行）
 '@
 
+$featureSample = @'
+# 获取一个月的特征样本，避免在教学展示阶段复制整套 Alpha158 数据
+sample_period = slice("2019-01-01", "2019-01-31")
+features = handler.fetch(selector=sample_period, col_set="feature")
+print("特征样本形状:", features.shape)
+features.head()
+'@
+
+$labelSample = @'
+# 获取与特征相同时间段的标签样本
+labels = handler.fetch(selector=sample_period, col_set="label")
+print("标签样本形状:", labels.shape)
+labels.head()
+'@
+
+$dataModeSamples = @'
+# ============================================
+# 低内存方式：只比较一个月样本，不保留三份全量矩阵
+# ============================================
+import gc
+
+sample_period = slice("2019-01-01", "2019-01-31")
+mode_samples = {}
+
+for data_key, label in (("raw", "原始"), ("infer", "推理"), ("learn", "学习")):
+    sample = handler.fetch(selector=sample_period, data_key=data_key)
+    mode_samples[data_key] = sample
+    print(f"{label}数据样本形状: {sample.shape}")
+    display(sample.head(2))
+
+print("三种模式仅保留一个月样本；完整数据仍由 handler 统一管理。")
+'@
+
+$dataModeExercise = @'
+##### **课后作业（2）：理解三种数据模式（raw / infer / learn）**
+
+下面的 `mode_samples` 只包含一个月数据，足以比较三种处理模式，同时避免在 Colab 中保存三份约百万行的全量矩阵。
+
+1. 比较三种样本的形状与缺失值数量；
+2. 比较标签的均值和标准差；
+3. 用文字说明 raw、infer、learn 分别适合什么场景。
+'@
+
+$dataModeExerciseCode = @'
+# 对比三种小样本的差异
+print("数据形状对比:")
+for key, frame in mode_samples.items():
+    print(f"{key:>5}: {frame.shape}")
+
+print("\n缺失值对比:")
+# TODO: 请补充代码，分别计算三种样本的缺失值数量
+
+print("\n标签统计对比:")
+# TODO: 请补充代码，比较三种样本中 LABEL0 的均值与标准差
+'@
+
+$datasetSample = @'
+# ============================================
+# 1. 查看训练期内一个月的小样本
+# ============================================
+sample_train_period = slice("2014-12-01", "2014-12-31")
+
+train_learn_sample = dataset.prepare(sample_train_period, data_key="learn")
+print("学习数据样本形状:", train_learn_sample.shape)
+display(train_learn_sample.head())
+
+train_raw_sample = dataset.prepare(sample_train_period, data_key="raw")
+print("原始数据样本形状:", train_raw_sample.shape)
+display(train_raw_sample.head())
+
+del train_learn_sample, train_raw_sample
+gc.collect()
+'@
+
+$segmentShapes = @'
+# ============================================
+# 2. 依次检查时间段形状，避免三份完整数据同时常驻内存
+# ============================================
+segment_shapes = {}
+for segment in ("train", "valid", "test"):
+    segment_frame = dataset.prepare(segment)
+    segment_shapes[segment] = segment_frame.shape
+    del segment_frame
+    gc.collect()
+
+print("\n数据集划分:")
+print(f"训练集: {segment_shapes['train']}")
+print(f"验证集: {segment_shapes['valid']}")
+print(f"测试集: {segment_shapes['test']}")
+'@
+
+$featureLabelSamples = @'
+# ============================================
+# 3. 使用小时间段查看特征和标签
+# ============================================
+sample_train_period = slice("2014-12-01", "2014-12-31")
+
+features_df = dataset.prepare(sample_train_period, col_set="feature")
+print("\n特征样本形状:", features_df.shape)
+display(features_df.head())
+
+label_df = dataset.prepare(sample_train_period, col_set="label")
+print("\n标签样本形状:", label_df.shape)
+display(label_df.head())
+'@
+
+$trainingCell = @'
+# 训练前释放教学展示阶段的 DataFrame，降低 Colab 内存峰值
+import gc
+
+for variable_name in [
+    "features", "labels", "mode_samples",
+    "features_df", "label_df", "segment_shapes",
+    "train_df", "valid_df", "test_df",
+    "raw_data", "infer_data", "learn_data",
+]:
+    globals().pop(variable_name, None)
+
+gc.collect()
+
+# 使用 Qlib workflow 记录训练实验
+with R.start(experiment_name="train_model"):
+    R.log_params(**flatten_dict(task))
+
+    # 复用第 4 节创建的 dataset，不再初始化第二套 Alpha158
+    model.fit(dataset)
+
+    # 训练结束后释放 LightGBM 的训练矩阵，只保留可预测的 Booster
+    if hasattr(model, "model") and hasattr(model.model, "free_dataset"):
+        model.model.free_dataset()
+    gc.collect()
+
+    R.save_objects(trained_model=model)
+    rid = R.get_recorder().id
+
+print(f"模型训练完成，Recorder ID: {rid}")
+'@
+
+$sqliteInit = @'
+mlflow_db = (Path("/content") if IN_COLAB else Path.cwd()) / "qlib_mlflow.db"
+exp_manager = {
+    "class": "MLflowExpManager",
+    "module_path": "qlib.workflow.expm",
+    "kwargs": {
+        "uri": f"sqlite:///{mlflow_db.resolve().as_posix()}",
+        "default_exp_name": "Experiment",
+    },
+}
+
+qlib.init(provider_uri=provider_uri, region=REG_CN, exp_manager=exp_manager)
+print(f"MLflow 实验数据库: {mlflow_db}")
+'@
+
 $newCells = [System.Collections.ArrayList]::new()
 [void]$newCells.Add((New-MarkdownCell $intro))
 [void]$newCells.Add((New-MarkdownCell $environment))
@@ -163,6 +318,22 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         $text = $text.Replace("provider_uri =  './qlib_data/cn_data' # target_dir", "provider_uri = str(QLIB_DATA_DIR)  # Colab 与本地共用")
         $text = $text.Replace('stock_features_path = Path("./qlib_data/cn_data/features/sh600000")', 'stock_features_path = QLIB_DATA_DIR / "features" / "sh600000"')
         $text = $text.Replace('"num_threads": 20,', '"num_threads": max(1, min(4, os.cpu_count() or 2)),')
+        $text = $text.Replace('qlib.init(provider_uri=provider_uri, region=REG_CN)', $sqliteInit)
+
+        if ($text -match '# 获取实际的 feaure 数据') { $text = $featureSample }
+        if ($text -match '# 获取实际的 label 数据') { $text = $labelSample }
+        if ($text -match '# 直接从 DataHandler 获取三种数据') { $text = $dataModeSamples }
+        if ($text -match '# 对比三种数据的差异') { $text = $dataModeExerciseCode }
+        if ($text -match '# 1\. 查看单个时间段的数据') { $text = $datasetSample }
+        if ($text -match '# 2\. 查看多个时间段的数据') { $text = $segmentShapes }
+        if ($text -match '# 3\. 查看特征和标签') { $text = $featureLabelSamples }
+
+        # task 中保留数据集配置用于实验记录，但训练时复用第 4 节已创建的 dataset。
+        $text = $text.Replace('dataset = init_instance_by_config(task["dataset"])', 'print("复用第 4 节已创建的 DatasetH，避免重复加载 Alpha158。")')
+
+        if ($text -match 'with R\.start\(experiment_name="train_model"\)' -and $text -match 'model\.fit\(dataset\)') {
+            $text = $trainingCell
+        }
 
         if ($text -match 'from Utils_backtest import \*') {
             $text = $text.Replace("import sys`nfrom pathlib import Path`n`n# 导入回测分析模块`nsys.path.insert(0, str(Path.cwd() / 'py'))`nfrom Utils_backtest import *`n", "# 回测分析辅助函数已在环境准备部分内嵌，无需额外文件。`n")
@@ -189,6 +360,10 @@ def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, 
 
         $cell.execution_count = $null
         $cell.outputs = @()
+    }
+
+    if ($cell.cell_type -eq 'markdown' -and $text -match '课后作业（2）：理解三种数据模式') {
+        $text = $dataModeExercise
     }
 
     $cell.source = @(ConvertTo-SourceLines $text)
