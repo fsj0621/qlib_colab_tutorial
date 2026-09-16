@@ -30,6 +30,8 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 
 ## Colab 数据说明
 
+Notebook 固定使用 Colab `2026.07` 运行时（Python 3.12.13），因为 `pyqlib==0.9.7` 暂无 Python 3.13 安装包。若已经连接到 Python 3.13，请在 **代码执行程序 → 更改运行时类型 → 运行时版本** 中选择 `2026.07`，然后重新运行。
+
 Qlib 当前 README 说明官方数据下载暂时停用，因此 Notebook 使用其推荐的社区数据镜像：
 
 `https://github.com/chenditc/investment_data/releases/latest/download/qlib_bin.tar.gz`

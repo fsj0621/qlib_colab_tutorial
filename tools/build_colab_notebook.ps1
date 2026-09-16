@@ -46,9 +46,10 @@ $intro = @'
 
 **建议使用方式**
 
-1. 在顶部菜单选择 **代码执行程序 → 全部运行**。
-2. 首次运行会安装依赖并下载约 464 MB 的教学数据，通常需要数分钟。
-3. 遇到“请补充代码”的单元格时完成练习，再继续后续章节。
+1. Notebook 会连接到固定的 Colab 2026.07 运行时（Python 3.12）。
+2. 在顶部菜单选择 **代码执行程序 → 全部运行**。
+3. 首次运行会安装依赖并下载约 464 MB 的教学数据，通常需要数分钟。
+4. 遇到“请补充代码”的单元格时完成练习，再继续后续章节。
 
 > 数据仅用于教学演示，不构成投资建议。Notebook 基于 [Microsoft Qlib v0.9.7 官方示例](https://github.com/microsoft/qlib/blob/v0.9.7/examples/workflow_by_code.ipynb) 改编，沿用 MIT License。
 '@
@@ -58,6 +59,7 @@ $environment = @'
 
 Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地安装 Qlib。下面的初始化单元格会：
 
+- 固定使用 Colab 2026.07 运行时（Python 3.12），避免 Qlib 与 Python 3.13 不兼容；
 - 安装与本教程验证版本一致的 Qlib、Plotly、Statsmodels 和 LightGBM；
 - 从 Qlib README 当前推荐的社区镜像下载 A 股教学数据；
 - 将数据解压到 Colab 的 `/content/qlib_data/cn_data`；
@@ -74,6 +76,7 @@ import subprocess
 from pathlib import Path
 
 IN_COLAB = "google.colab" in sys.modules
+SUPPORTED_PYTHON_MAX = (3, 12)
 PINNED_PACKAGES = [
     "pyqlib==0.9.7",
     "plotly==6.6.0",
@@ -81,12 +84,31 @@ PINNED_PACKAGES = [
     "lightgbm==4.6.0",
 ]
 
+if IN_COLAB and sys.version_info[:2] > SUPPORTED_PYTHON_MAX:
+    from IPython.display import HTML, display
+    display(HTML("""
+    <div style="padding:16px;border:2px solid #f59e0b;border-radius:12px;background:#fffbeb">
+      <b>需要切换到 Python 3.12 运行时</b><br>
+      当前 Colab 使用 Python 3.13，但 Qlib 0.9.7 尚未提供 Python 3.13 安装包。<br>
+      请选择：<b>代码执行程序 → 更改运行时类型 → 运行时版本 → 2026.07</b>，保存后重新运行全部单元格。
+    </div>
+    """))
+    raise RuntimeError(
+        f"当前 Python {sys.version.split()[0]} 不受 Qlib 0.9.7 支持；请切换到 Colab 2026.07（Python 3.12）。"
+    )
+
 if IN_COLAB:
     print("正在安装教学环境……")
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q", *PINNED_PACKAGES],
-        check=True,
+    install_result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet", *PINNED_PACKAGES],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
     )
+    if install_result.returncode != 0:
+        print("\n依赖安装日志（最后 40 行）：")
+        print("\n".join(install_result.stdout.splitlines()[-40:]))
+        raise RuntimeError("教学环境安装失败，请保留上方日志并联系教师。")
     QLIB_DATA_DIR = Path("/content/qlib_data/cn_data")
 else:
     print("当前不是 Colab：请先执行 pip install -r requirements-colab.txt")
@@ -190,6 +212,9 @@ $output = [ordered]@{
         colab = [ordered]@{
             name = 'Qlib量化投资工作流教程_Colab学生版.ipynb'
             provenance = @()
+            runtime_attributes = [ordered]@{
+                runtime_version = '2026.07'
+            }
         }
         kernelspec = [ordered]@{
             display_name = 'Python 3'
