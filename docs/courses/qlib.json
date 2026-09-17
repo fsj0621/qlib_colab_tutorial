@@ -8,7 +8,7 @@
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.1.1",
+  "release": "main",
   "explorationNotebookPath": "notebooks/Qlib数据与因子探索_Colab教学版.ipynb",
   "explorationDownloadPath": "downloads/Qlib数据与因子探索_Colab教学版.ipynb",
   "trainingNotebookPath": "notebooks/Qlib模型训练与回测_Colab教学版.ipynb",
