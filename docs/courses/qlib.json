@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.7",
+  "version": "v1.0.8",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.7",
+  "release": "v1.0.8",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
@@ -227,7 +227,7 @@
       "note": {
         "tone": "warning",
         "title": "低内存回测",
-        "text": "SignalRecord 只预测一次并保存 pred.pkl；随后释放模型和 Alpha158 数据集。回测交易所显式限制为 csi300，避免 Qlib 默认加载全市场行情；backtest_analysis 创建提示是正常信息。"
+        "text": "SignalRecord 只预测一次并保存 pred.pkl；随后释放模型和 Alpha158 数据集。交易所只缓存预测中实际出现的股票，使用 PandasQuote 避免二次 float64 转换，并把回测期限制为 2019 年；backtest_analysis 创建提示是正常信息。"
       }
     },
     {

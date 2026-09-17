@@ -174,6 +174,10 @@ TEACHING_SEGMENTS = {
     "test": ("2019-01-01", "2020-08-01"),
 }
 
+# 免费 Colab 的组合回测只使用 2019 年。模型测试集仍保留到 2020-08，
+# 但交易所行情缓存的时间范围更短，足以完成课堂演示和绩效分析。
+LOW_MEMORY_BACKTEST_END = "2019-12-31"
+
 demo_handler_config = {
     "start_time": "2019-01-01",
     "end_time": "2019-01-31",
@@ -374,8 +378,9 @@ print(f"模型训练完成，Recorder ID: {rid}")
 
 $backtestWorkflow = @'
 # ==================== 低内存回测流程 ====================
-# 关键原则：模型只预测一次；组合回测直接读取 recorder 中的 pred.pkl。
-print("[1/3] 准备生成测试集预测信号……", flush=True)
+# 关键原则：模型只预测一次；交易所只缓存预测中出现的股票；
+# 组合回测直接读取 recorder 中的 pred.pkl。
+print("[1/4] 准备生成测试集预测信号……", flush=True)
 show_process_memory("信号生成前")
 
 with R.start(experiment_name="backtest_analysis"):
@@ -385,7 +390,12 @@ with R.start(experiment_name="backtest_analysis"):
     # 复用上一节内存中的训练模型，避免再从 MLflow 反序列化一份模型。
     sr = SignalRecord(model, dataset, recorder)
     sr.generate()
-    print("[2/3] pred.pkl 已保存；准备释放模型与 Alpha158 数据集……", flush=True)
+    print("[2/4] pred.pkl 已保存；准备释放模型与 Alpha158 数据集……", flush=True)
+
+    # 从预测结果提取实际出现的股票，避免交易所解析整个动态股票池。
+    pred_for_scope = recorder.load_object("pred.pkl")
+    backtest_codes = sorted(pred_for_scope.index.get_level_values("instrument").unique())
+    del pred_for_scope
 
     # 后续 IC 分析只需要标签列。先保留这一列，然后释放完整特征数据。
     label_df = dataset.prepare("test", col_set="label")
@@ -397,12 +407,30 @@ with R.start(experiment_name="backtest_analysis"):
     gc.collect()
     show_process_memory("信号生成后、组合回测前")
 
+    # 先单独创建交易所，便于看到进度。PandasQuote 是 Qlib 官方实现，
+    # 避免默认 NumpyQuote 再生成一套 float64 行情缓存。
+    print(
+        f"[3/4] 创建低内存交易所（{len(backtest_codes)} 只股票，"
+        f"截至 {LOW_MEMORY_BACKTEST_END}）……",
+        flush=True,
+    )
+    exchange_kwargs = dict(port_analysis_config["backtest"]["exchange_kwargs"])
+    exchange_kwargs["codes"] = backtest_codes
+    backtest_exchange = get_exchange(
+        start_time=port_analysis_config["backtest"]["start_time"],
+        end_time=port_analysis_config["backtest"]["end_time"],
+        **exchange_kwargs,
+    )
+    port_analysis_config["backtest"]["exchange_kwargs"] = {"exchange": backtest_exchange}
+    gc.collect()
+    show_process_memory("低内存交易所创建后")
+
     # port_analysis_config 使用 <PRED> 占位符；PortAnaRecord 会从当前
-    # recorder 读取 pred.pkl，不会再次调用模型预测。
-    print(f"[3/3] 开始组合回测（股票范围：{market}，不会加载全市场）……", flush=True)
+    # recorder 读取 pred.pkl，不会再次调用模型预测或创建第二个交易所。
+    print("[4/4] 开始组合回测……", flush=True)
     par = PortAnaRecord(recorder, port_analysis_config, "day")
     par.generate()
-    del par
+    del par, backtest_exchange
     gc.collect()
     show_process_memory("组合回测完成")
 
@@ -420,7 +448,7 @@ exp_manager = {
     },
 }
 
-qlib.init(provider_uri=provider_uri, region=REG_CN, exp_manager=exp_manager)
+qlib.init(provider_uri=provider_uri, region=REG_CN, exp_manager=exp_manager, kernels=1)
 print(f"MLflow 实验数据库: {mlflow_db}")
 '@
 
@@ -440,6 +468,9 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         $text = $text.Replace('stock_features_path = Path("./qlib_data/cn_data/features/sh600000")', 'stock_features_path = QLIB_DATA_DIR / "features" / "sh600000"')
         $text = $text.Replace('"num_threads": 20,', '"num_threads": max(1, min(4, os.cpu_count() or 2)),')
         $text = $text.Replace('qlib.init(provider_uri=provider_uri, region=REG_CN)', $sqliteInit)
+        if ($text -match 'from qlib\.workflow\.record_temp import SignalRecord, PortAnaRecord') {
+            $text = $text.Replace('from qlib.workflow.record_temp import SignalRecord, PortAnaRecord', "from qlib.workflow.record_temp import SignalRecord, PortAnaRecord`nfrom qlib.backtest import get_exchange`nfrom qlib.backtest.high_performance_ds import PandasQuote")
+        }
 
         if ($text -match '# 获取实际的 feaure 数据') { $text = $featureSample }
         if ($text -match '# 获取实际的 label 数据') { $text = $labelSample }
@@ -466,10 +497,10 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
 
         if ($text -match 'port_analysis_config\s*=') {
             $text = $text.Replace('"start_time": "2017-01-01"', '"start_time": TEACHING_SEGMENTS["test"][0]')
-            $text = $text.Replace('"end_time": "2020-08-01"', '"end_time": TEACHING_SEGMENTS["test"][1]')
+            $text = $text.Replace('"end_time": "2020-08-01"', '"end_time": LOW_MEMORY_BACKTEST_END')
             $text = $text.Replace('"model": model,                              # 使用的预测模型', '"signal": "<PRED>",                         # 复用 SignalRecord 已保存的预测')
             $text = $text.Replace("            `"dataset`": dataset,                          # 数据集`n", '')
-            $text = $text.Replace('"freq": "day",                               # 交易频率：日频', "`"codes`": market,                              # 只加载沪深300，避免默认读取全市场`n            `"freq`": `"day`",                               # 交易频率：日频")
+            $text = $text.Replace('"freq": "day",                               # 交易频率：日频', "`"codes`": market,                              # 运行时会替换为预测中实际出现的股票`n            `"quote_cls`": PandasQuote,                    # 避免 NumpyQuote 的二次 float64 缓存`n            `"freq`": `"day`",                               # 交易频率：日频")
         }
 
         # task 中保留数据集配置用于实验记录，但训练时复用第 4 节已创建的 dataset。
