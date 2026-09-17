@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.5",
+  "version": "v1.0.6",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.5",
+  "release": "v1.0.6",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
@@ -226,8 +226,8 @@
       },
       "note": {
         "tone": "warning",
-        "title": "常见误区",
-        "text": "预测分数不是收益率；它只负责排序。真正的组合收益还取决于持仓规则、成交限制和交易成本。"
+        "title": "低内存回测",
+        "text": "SignalRecord 只预测一次并保存 pred.pkl；随后释放模型和 Alpha158 数据集，PortAnaRecord 直接读取该信号进行回测。日志中的 backtest_analysis 创建提示是正常信息。"
       }
     },
     {

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)]
     [string]$SourceNotebook,
     [Parameter(Mandatory = $true)]
@@ -372,6 +372,43 @@ with R.start(experiment_name="train_model"):
 print(f"模型训练完成，Recorder ID: {rid}")
 '@
 
+$backtestWorkflow = @'
+# ==================== 低内存回测流程 ====================
+# 关键原则：模型只预测一次；组合回测直接读取 recorder 中的 pred.pkl。
+print("[1/3] 准备生成测试集预测信号……", flush=True)
+show_process_memory("信号生成前")
+
+with R.start(experiment_name="backtest_analysis"):
+    recorder = R.get_recorder()
+    ba_rid = recorder.id
+
+    # 复用上一节内存中的训练模型，避免再从 MLflow 反序列化一份模型。
+    sr = SignalRecord(model, dataset, recorder)
+    sr.generate()
+    print("[2/3] pred.pkl 已保存；准备释放模型与 Alpha158 数据集……", flush=True)
+
+    # 后续 IC 分析只需要标签列。先保留这一列，然后释放完整特征数据。
+    label_df = dataset.prepare("test", col_set="label")
+    label_df.columns = ["label"]
+
+    del sr
+    for variable_name in ["model", "dataset", "handler", "task"]:
+        globals().pop(variable_name, None)
+    gc.collect()
+    show_process_memory("信号生成后、组合回测前")
+
+    # port_analysis_config 使用 <PRED> 占位符；PortAnaRecord 会从当前
+    # recorder 读取 pred.pkl，不会再次调用模型预测。
+    print("[3/3] 开始组合回测（不会重复预测）……", flush=True)
+    par = PortAnaRecord(recorder, port_analysis_config, "day")
+    par.generate()
+    del par
+    gc.collect()
+    show_process_memory("组合回测完成")
+
+print(f"回测完成，Recorder ID: {ba_rid}")
+'@
+
 $sqliteInit = @'
 mlflow_db = (Path("/content") if IN_COLAB else Path.cwd()) / "qlib_mlflow.db"
 exp_manager = {
@@ -430,6 +467,8 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         if ($text -match 'port_analysis_config\s*=') {
             $text = $text.Replace('"start_time": "2017-01-01"', '"start_time": TEACHING_SEGMENTS["test"][0]')
             $text = $text.Replace('"end_time": "2020-08-01"', '"end_time": TEACHING_SEGMENTS["test"][1]')
+            $text = $text.Replace('"model": model,                              # 使用的预测模型', '"signal": "<PRED>",                         # 复用 SignalRecord 已保存的预测')
+            $text = $text.Replace("            `"dataset`": dataset,                          # 数据集`n", '')
         }
 
         # task 中保留数据集配置用于实验记录，但训练时复用第 4 节已创建的 dataset。
@@ -437,6 +476,20 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
 
         if ($text -match 'with R\.start\(experiment_name="train_model"\)' -and $text -match 'model\.fit\(dataset\)') {
             $text = $trainingCell
+        }
+
+        if ($text -match 'with R\.start\(experiment_name="backtest_analysis"\)' -and $text -match 'SignalRecord\(') {
+            $text = $backtestWorkflow
+        }
+
+        if ($text -match '# 准备预测和标签数据') {
+            $text = @'
+# 标签列已在信号生成后保留；完整 Alpha158 数据集已释放，避免再次抬高内存。
+if "label_df" not in globals():
+    raise RuntimeError("请先顺序运行第 6.2 节的低内存回测单元格。")
+
+print(f"标签数据形状: {label_df.shape}")
+'@
         }
 
         if ($text -match 'from Utils_backtest import \*') {
