@@ -40,7 +40,7 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 python scripts/build_tutorial_content.py `
   --input "docs/downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" `
   --output "docs/courses/qlib-notebook.json" `
-  --revision "v1.0.9"
+  --revision "v1.0.10"
 ```
 
 课程配置中的 `notebookContent` 指向生成结果。更新已发布 Notebook 后重新运行此命令，网页讲解内容就会同步更新。
@@ -59,7 +59,7 @@ python scripts/build_tutorial_content.py `
 
 Notebook 固定使用 Colab `2026.07` 运行时（Python 3.12.13），因为 `pyqlib==0.9.7` 暂无 Python 3.13 安装包。若已经连接到 Python 3.13，请在 **代码执行程序 → 更改运行时类型 → 运行时版本** 中选择 `2026.07`，然后重新运行。
 
-`v1.0.9` 采用免费 Colab 教学流程：raw / infer / learn 由一个月的小型 Alpha158 处理器演示，随后整体释放；正式处理器启用 `drop_raw=True`，使用 2017 年训练、2018 年验证和 2019–2020 年测试。模型只生成一次预测，随后立即释放完整 Alpha158 数据集；2019 年标签通过 Qlib 数据接口按单个表达式重新读取。默认回测不再创建 `Exchange` 或 `PortAnaRecord`，而是用 TopK=50、每日最多替换 5 只、等权收益、换手率和交易费生成与后续分析兼容的教学产物。完整成交仿真配置仍保留为本地或高内存环境的扩展内容。
+`v1.0.10` 采用免费 Colab 两段式教学流程：raw / infer / learn 由一个月的小型 Alpha158 处理器演示，随后整体释放；模型只生成一次预测，2019 年标签按单个表达式读取，默认回测用 TopK=50、每日最多替换 5 只、等权收益、换手率和交易费生成教学产物。回测完成后会自动下载 `qlib_analysis_checkpoint.pkl.gz`。如果免费运行时随后被整体回收，可打开独立的“绩效分析恢复版” Notebook，上传检查点后直接继续第 7 节，无需重新训练或下载行情数据。
 
 Qlib 当前 README 说明官方数据下载暂时停用，因此 Notebook 使用其推荐的社区数据镜像：
 
@@ -76,9 +76,13 @@ powershell -ExecutionPolicy Bypass -File tools/build_colab_notebook.ps1 `
   -SourceNotebook "源文件路径\Qlib基础教程.ipynb" `
   -SupportModule "源文件路径\Utils_backtest.py" `
   -OutputNotebook "notebooks\Qlib量化投资工作流教程_Colab学生版.ipynb"
+
+python scripts/build_analysis_recovery_notebook.py `
+  --input "notebooks\Qlib量化投资工作流教程_Colab学生版.ipynb" `
+  --output "notebooks\Qlib绩效分析_Colab恢复版.ipynb"
 ```
 
-生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；生成完成后还会同步一份到 `docs/downloads/`，供网页按钮同源下载。
+主生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；恢复版生成器会提取第 7 节并加入检查点上传流程。发布前将两个 Notebook 同步到 `docs/downloads/`。
 
 ## 版权
 

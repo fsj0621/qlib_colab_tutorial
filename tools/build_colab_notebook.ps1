@@ -525,11 +525,93 @@ with R.start(experiment_name="backtest_analysis"):
         },
     )
 
+    # Colab 免费运行时可能在任务完成后回收整台虚拟机，因此把第 7 节所需
+    # 数据保存为浏览器下载文件。持仓仅保存股票代码，恢复时再重建 Position。
+    import gzip
+    import pickle
+
+    checkpoint_path = Path("/content/qlib_analysis_checkpoint.pkl.gz") if IN_COLAB else Path(
+        "qlib_analysis_checkpoint.pkl.gz"
+    )
+    portable_positions = {
+        pd.Timestamp(date).isoformat(): position.get_stock_list()
+        for date, position in positions.items()
+    }
+    checkpoint = {
+        "schema_version": 1,
+        "pred_df": pred_df,
+        "label_df": label_df,
+        "report_normal_df": report_normal_df,
+        "positions": portable_positions,
+        "analysis_df": analysis_df,
+    }
+    with gzip.open(checkpoint_path, "wb", compresslevel=6) as checkpoint_file:
+        pickle.dump(checkpoint, checkpoint_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    print(f"分析检查点已生成：{checkpoint_path.name}", flush=True)
+    if IN_COLAB:
+        from google.colab import files
+
+        print("浏览器将下载检查点；如果运行时被回收，请在“绩效分析恢复版”中上传它。", flush=True)
+        files.download(str(checkpoint_path))
+
     del signal_and_return, benchmark_df
     gc.collect()
     show_process_memory("轻量回测完成")
 
 print(f"轻量回测完成，共 {len(report_normal_df)} 个交易日，Recorder ID: {ba_rid}")
+'@
+
+$analysisRecorderCell = @'
+from qlib.contrib.report import analysis_model, analysis_position
+
+required_analysis_objects = [
+    "pred_df", "label_df", "report_normal_df", "positions", "analysis_df"
+]
+missing_analysis_objects = [name for name in required_analysis_objects if name not in globals()]
+if missing_analysis_objects:
+    raise RuntimeError(
+        "当前运行时没有分析数据。请打开网页中的“绩效分析恢复版”，"
+        "上传 qlib_analysis_checkpoint.pkl.gz 后继续。"
+    )
+
+print("轻量回测结果已在内存中，可直接进行绩效与 IC 分析。")
+'@
+
+$predictionOverviewCell = @'
+# ==================== 查看预测数据 ====================
+# pred_df 已由轻量回测生成，或由分析检查点恢复，不再访问 MLflow。
+pred_info = pd.DataFrame({
+    "属性": [
+        "数据形状", "列名", "索引层级", "日期范围（开始）", "日期范围（结束）", "股票数量"
+    ],
+    "值": [
+        f"{pred_df.shape[0]:,} × {pred_df.shape[1]}",
+        ", ".join(pred_df.columns.tolist()),
+        ", ".join(pred_df.index.names),
+        str(pred_df.index.get_level_values("datetime").min()),
+        str(pred_df.index.get_level_values("datetime").max()),
+        f"{len(pred_df.index.get_level_values('instrument').unique()):,}",
+    ],
+}).set_index("属性")
+
+print("\n【预测数据概览】")
+display(pred_info)
+print("\n【预测结果预览（前5行）】")
+display(pred_df.head(5))
+'@
+
+$backtestDataCell = @'
+# ==================== 查看回测数据 ====================
+# 报告、持仓和风险分析已在内存中，或由分析检查点恢复。
+data_info = get_backtest_data_info(report_normal_df, positions, analysis_df)
+
+print("\n【回测报告信息】")
+display(data_info["report_info"])
+print("\n【回测报告预览（前5行）】")
+display(report_normal_df.head(5))
+print("\n【回测报告统计摘要】")
+display(report_normal_df.describe().style.format("{:.4f}"))
 '@
 
 $sqliteInit = @'
@@ -611,6 +693,18 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
 
         if ($text -match 'with R\.start\(experiment_name="backtest_analysis"\)' -and $text -match 'SignalRecord\(') {
             $text = $backtestWorkflow
+        }
+
+        if ($text -match 'recorder\s*=\s*R\.get_recorder\(recorder_id=ba_rid') {
+            $text = $analysisRecorderCell
+        }
+
+        if ($text -match 'pred_df\s*=\s*recorder\.load_object\("pred\.pkl"\)') {
+            $text = $predictionOverviewCell
+        }
+
+        if ($text -match 'load_backtest_data\(recorder') {
+            $text = $backtestDataCell
         }
 
         if ($text -match '# 准备预测和标签数据') {

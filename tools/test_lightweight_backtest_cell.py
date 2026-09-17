@@ -15,6 +15,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = ROOT / "notebooks" / "Qlib量化投资工作流教程_Colab学生版.ipynb"
+RECOVERY_NOTEBOOK = ROOT / "notebooks" / "Qlib绩效分析_Colab恢复版.ipynb"
 
 
 class FakePosition:
@@ -140,6 +141,8 @@ def main():
         "benchmark": "SH000300",
         "TEACHING_SEGMENTS": {"test": ("2019-01-01", "2020-08-01")},
         "LOW_MEMORY_BACKTEST_END": "2019-12-31",
+        "IN_COLAB": False,
+        "Path": Path,
         "show_process_memory": lambda _stage: None,
     }
     exec(compile(cell_source, str(NOTEBOOK), "exec"), environment)
@@ -160,7 +163,32 @@ def main():
         "portfolio_analysis/port_analysis_1day.pkl",
     ):
         assert artifact in recorder.objects
-    print(f"lightweight backtest mock OK | days={len(report)} | positions={len(positions)}")
+    checkpoint_path = environment["checkpoint_path"]
+    assert checkpoint_path.exists() and checkpoint_path.stat().st_size > 0
+
+    recovery_notebook = json.loads(RECOVERY_NOTEBOOK.read_text(encoding="utf-8-sig"))
+    recovery_setup = next(
+        "".join(cell.get("source", []))
+        for cell in recovery_notebook["cells"]
+        if cell.get("cell_type") == "code" and "分析环境准备完成" in "".join(cell.get("source", []))
+    )
+    recovery_loader = next(
+        "".join(cell.get("source", []))
+        for cell in recovery_notebook["cells"]
+        if cell.get("cell_type") == "code" and "checkpoint = pickle.load" in "".join(cell.get("source", []))
+    )
+    recovery_environment = {"IN_COLAB": False}
+    exec(compile(recovery_setup, str(RECOVERY_NOTEBOOK), "exec"), recovery_environment)
+    exec(compile(recovery_loader, str(RECOVERY_NOTEBOOK), "exec"), recovery_environment)
+    assert recovery_environment["report_normal_df"].equals(report)
+    assert len(recovery_environment["positions"]) == len(positions)
+    assert recovery_environment["pred_df"].equals(environment["pred_df"])
+
+    checkpoint_path.unlink()
+    print(
+        f"lightweight backtest + recovery mock OK | "
+        f"days={len(report)} | positions={len(positions)}"
+    )
 
 
 if __name__ == "__main__":

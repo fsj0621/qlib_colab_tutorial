@@ -150,12 +150,25 @@
     )).join("") + `
       <div class="course-finish">
         <div><span class="lesson-kicker">完成课程</span><h2>回到 Notebook 完成练习</h2></div>
-        <a class="button button-primary" data-course-colab target="_self" href="#">打开 Colab ↗</a>
+        <div class="hero-actions">
+          <a class="button button-ghost" data-course-recovery target="_self" href="#">断线后恢复分析 ↗</a>
+          <a class="button button-primary" data-course-colab target="_self" href="#">打开 Colab ↗</a>
+        </div>
       </div>`;
 
     const colabUrl = `https://colab.research.google.com/github/${course.owner}/${course.repo}/blob/${course.release}/${encodeURI(course.notebookPath)}`;
+    const recoveryColabUrl = course.recoveryNotebookPath
+      ? `https://colab.research.google.com/github/${course.owner}/${course.repo}/blob/${course.release}/${encodeURI(course.recoveryNotebookPath)}`
+      : "";
     const downloadUrl = new URL(encodeURI(course.downloadPath), document.baseURI).href;
     document.querySelectorAll("[data-course-colab]").forEach((link) => { link.href = colabUrl; });
+    document.querySelectorAll("[data-course-recovery]").forEach((link) => {
+      if (!recoveryColabUrl) {
+        link.hidden = true;
+      } else {
+        link.href = recoveryColabUrl;
+      }
+    });
     document.querySelectorAll("[data-course-download]").forEach((link) => {
       link.href = downloadUrl;
       link.setAttribute("download", course.notebookPath.split("/").pop());

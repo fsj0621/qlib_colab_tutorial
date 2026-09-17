@@ -4,13 +4,15 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.9",
+  "version": "v1.0.10",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.9",
+  "release": "v1.0.10",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
+  "recoveryNotebookPath": "notebooks/Qlib绩效分析_Colab恢复版.ipynb",
+  "recoveryDownloadPath": "downloads/Qlib绩效分析_Colab恢复版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
   "modules": [
     {
@@ -227,7 +229,7 @@
       "note": {
         "tone": "warning",
         "title": "低内存回测",
-        "text": "免费 Colab 默认不创建 Exchange 或 PortAnaRecord，而是直接用预测与未来收益完成 2019 年 TopK 教学回测，避免行情缓存导致运行时退出。该流程不模拟涨跌停、停牌和最小成交金额；完整配置保留给本地或高内存环境。"
+        "text": "免费 Colab 默认不创建 Exchange 或 PortAnaRecord。回测完成后浏览器会自动下载 qlib_analysis_checkpoint.pkl.gz；请保留该文件。如果虚拟机随后被回收，可用“绩效分析恢复版”上传它并继续第 7 节。"
       }
     },
     {
@@ -269,7 +271,7 @@
       },
       "note": {
         "title": "结束判断",
-        "text": "一个可用策略需要同时回答：收益来自哪里、风险有多大、成本后是否仍成立、预测关系是否稳定。"
+        "text": "如果运行时仍在线可直接继续；如果变量丢失，请打开页面顶部的“恢复第 7 节”，上传主 Notebook 下载的检查点。无需重新训练或下载行情。"
       }
     }
   ]

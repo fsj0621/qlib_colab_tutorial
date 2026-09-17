@@ -10,8 +10,10 @@
   const branch = config.branch || "main";
   const notebookPath = config.notebookPath || "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb";
   const downloadPath = config.downloadPath || `downloads/${notebookPath.split("/").pop()}`;
+  const recoveryNotebookPath = config.recoveryNotebookPath || "";
 
   const colabLinks = document.querySelectorAll("[data-colab-link]");
+  const recoveryColabLinks = document.querySelectorAll("[data-recovery-colab]");
   const githubLinks = document.querySelectorAll("[data-github-link]");
   const downloadLinks = document.querySelectorAll("[data-notebook-download]");
   const deploymentHint = document.querySelector("[data-deployment-hint]");
@@ -31,10 +33,22 @@
   if (owner && repo) {
     const githubUrl = `https://github.com/${owner}/${repo}`;
     const colabUrl = `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(notebookPath)}`;
+    const recoveryColabUrl = recoveryNotebookPath
+      ? `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(recoveryNotebookPath)}`
+      : "";
     colabLinks.forEach((link) => {
       link.href = colabUrl;
       // Some embedded browsers silently block links that open a new tab.
       // Keep Colab navigation in the current tab so one click always works.
+      link.target = "_self";
+      link.removeAttribute("rel");
+    });
+    recoveryColabLinks.forEach((link) => {
+      if (!recoveryColabUrl) {
+        link.hidden = true;
+        return;
+      }
+      link.href = recoveryColabUrl;
       link.target = "_self";
       link.removeAttribute("rel");
     });
@@ -46,6 +60,13 @@
     if (deploymentHint) deploymentHint.hidden = true;
   } else {
     colabLinks.forEach((link) => {
+      link.href = "#colab-setup";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (typeof colabDialog?.showModal === "function") colabDialog.showModal();
+      });
+    });
+    recoveryColabLinks.forEach((link) => {
       link.href = "#colab-setup";
       link.addEventListener("click", (event) => {
         event.preventDefault();
