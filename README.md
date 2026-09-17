@@ -40,7 +40,7 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 python scripts/build_tutorial_content.py `
   --input "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb" `
   --output "docs/courses/qlib-notebook.json" `
-  --revision "v1.1.3"
+  --revision "v1.1.4"
 ```
 
 课程配置中的 `notebookContent` 指向生成结果。更新已发布 Notebook 后重新运行此命令，网页讲解内容就会同步更新。
@@ -59,7 +59,7 @@ python scripts/build_tutorial_content.py `
 
 Notebook 固定使用 Colab `2026.07` 运行时（Python 3.12.13），因为 `pyqlib==0.9.7` 暂无 Python 3.13 安装包。若已经连接到 Python 3.13，请在 **代码执行程序 → 更改运行时类型 → 运行时版本** 中选择 `2026.07`，然后重新运行。
 
-`v1.1.3` 将课堂实践拆成两个独立运行时。第一部分只讲数据、表达式特征与一个月的 Alpha158 小样本，不创建正式训练集；完成后主动删除运行时。第二部分从干净环境独立创建唯一一套正式 Alpha158，并恢复 Qlib 的 `SignalRecord`、`PortAnaRecord` 与 `SimulatorExecutor` 标准流程。训练、验证、测试区间继续使用 2017、2018、2019–2020 的课堂轻量范围，组合回测只覆盖 2019 年；不再生成或下载额外检查点文件。讲解网页会按需渲染原始课程中的 Plotly 示例图，而两本学生 Notebook 仍保持无预存输出。课后作业 3、4 已改为限定式代码骨架，学生各自只需补全 3 个核心计算。
+`v1.1.4` 将课堂实践拆成两个独立运行时。第一部分只讲数据、表达式特征与一个月的 Alpha158 小样本，不创建正式训练集；完成后主动删除运行时。第二部分从干净环境独立创建唯一一套正式 Alpha158，并恢复 Qlib 的 `SignalRecord`、`PortAnaRecord` 与 `SimulatorExecutor` 标准流程。训练、验证、测试区间继续使用 2017、2018、2019–2020 的课堂轻量范围，组合回测只覆盖 2019 年；不再生成或下载额外检查点文件。讲解网页会按需渲染原始课程中的 Plotly 示例图，而两本学生 Notebook 仍保持无预存输出。课后作业 3、4 已改为限定式代码骨架，学生各自只需补全 3 个核心计算。环境安装会优先复用 Colab 预装的 Plotly，避免覆盖系统包时出现 `Errno 5`。
 
 Qlib 当前 README 说明官方数据下载暂时停用，因此 Notebook 使用其推荐的社区数据镜像：
 

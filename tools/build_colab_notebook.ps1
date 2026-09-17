@@ -66,7 +66,7 @@ $environment = @'
 Colab 会为每位学习者提供临时 Python 环境，因此不需要在本地安装 Qlib。下面的初始化单元格会：
 
 - 固定使用 Colab 2026.07 运行时（Python 3.12），避免 Qlib 与 Python 3.13 不兼容；
-- 安装与本教程验证版本一致的 Qlib、Plotly、Statsmodels 和 LightGBM；
+- 安装与本教程验证版本一致的 Qlib、Statsmodels 和 LightGBM，并优先复用 Colab 预装的 Plotly；
 - 从 Qlib README 当前推荐的社区镜像下载 A 股教学数据；
 - 将数据解压到 Colab 的 `/content/qlib_data/cn_data`；
 - 检查 Python 版本和数据目录是否就绪。
@@ -84,16 +84,22 @@ $setup = @'
 import os
 import sys
 import subprocess
+import importlib.util
 from pathlib import Path
 
 IN_COLAB = "google.colab" in sys.modules
 SUPPORTED_PYTHON_MAX = (3, 12)
 PINNED_PACKAGES = [
     "pyqlib==0.9.7",
-    "plotly==6.6.0",
     "statsmodels==0.14.6",
     "lightgbm==4.6.0",
 ]
+
+# Colab 已预装 Plotly。不要强制覆盖它，否则 pip 需要把系统目录中的
+# plotly 重命名为 ~lotly，偶发的运行时文件系统错误会导致 Errno 5。
+INSTALL_PACKAGES = list(PINNED_PACKAGES)
+if importlib.util.find_spec("plotly") is None:
+    INSTALL_PACKAGES.append("plotly>=5.18,<7")
 
 if IN_COLAB and sys.version_info[:2] > SUPPORTED_PYTHON_MAX:
     from IPython.display import HTML, display
@@ -111,7 +117,16 @@ if IN_COLAB and sys.version_info[:2] > SUPPORTED_PYTHON_MAX:
 if IN_COLAB:
     print("正在安装教学环境……")
     install_result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--quiet", *PINNED_PACKAGES],
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--quiet",
+            "--disable-pip-version-check",
+            "--no-cache-dir",
+            *INSTALL_PACKAGES,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -119,6 +134,11 @@ if IN_COLAB:
     if install_result.returncode != 0:
         print("\n依赖安装日志（最后 40 行）：")
         print("\n".join(install_result.stdout.splitlines()[-40:]))
+        if "Input/output error" in install_result.stdout or "Errno 5" in install_result.stdout:
+            raise RuntimeError(
+                "Colab 运行时文件系统已损坏。请选择“代码执行程序 → 断开连接并删除运行时”，"
+                "重新连接 CPU 运行时后，再从第一个单元格开始运行。"
+            )
         raise RuntimeError("教学环境安装失败，请保留上方日志并联系教师。")
     QLIB_DATA_DIR = Path("/content/qlib_data/cn_data")
 else:
@@ -152,7 +172,14 @@ if not calendar_file.exists():
 
 # Colab 对 Plotly 的自动渲染识别并不总是稳定。统一指定专用 renderer，
 # 并让后续所有图表通过同一个函数显式显示。
-import plotly.io as pio
+try:
+    import plotly
+    import plotly.io as pio
+except Exception as exc:
+    raise RuntimeError(
+        "Plotly 安装状态异常。请选择“代码执行程序 → 断开连接并删除运行时”，"
+        "重新连接后再运行本单元格。"
+    ) from exc
 
 PLOTLY_RENDERER = "colab" if IN_COLAB else "notebook_connected"
 pio.renderers.default = PLOTLY_RENDERER
@@ -163,6 +190,7 @@ def show_plotly(figure):
 
 print(f"Python: {sys.version.split()[0]}")
 print(f"Qlib 数据目录: {QLIB_DATA_DIR}")
+print(f"Plotly: {plotly.__version__}")
 print(f"Plotly 渲染器: {PLOTLY_RENDERER}")
 print("环境准备完成 ✓")
 '@
