@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.8",
+  "version": "v1.0.9",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.8",
+  "release": "v1.0.9",
   "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
@@ -199,20 +199,20 @@
       "shortTitle": "TopK 策略回测",
       "duration": "40 min",
       "notebookSection": "第 6 节",
-      "summary": "把横截面预测分数转换成持仓，并在交易成本约束下模拟组合表现。",
+      "summary": "把横截面预测分数转换成 TopK 持仓，用轻量教学回测计算收益、换手和成本。",
       "objectives": [
         "理解预测信号、选股策略和执行器的连接方式",
         "解释 TopK 与换仓数量参数",
-        "识别手续费、滑点和涨跌停约束对结果的影响"
+        "区分免费 Colab 教学近似与完整成交仿真的边界"
       ],
       "primary": {
         "title": "回测链路",
         "style": "ordered",
         "items": [
-          "`SignalRecord` 生成横截面预测分数。",
-          "TopK 策略把分数转换为买卖目标。",
-          "执行器模拟成交并更新账户净值。",
-          "`PortAnaRecord` 输出组合分析结果。"
+          "模型生成一次横截面预测，随后释放 Alpha158。",
+          "每日保留高分持仓、淘汰 5 只并补足 Top 50。",
+          "按等权未来收益计算组合收益、换手率和交易费。",
+          "保存兼容产物，继续使用 Qlib 的绩效与风险图表。"
         ]
       },
       "secondary": {
@@ -227,7 +227,7 @@
       "note": {
         "tone": "warning",
         "title": "低内存回测",
-        "text": "SignalRecord 只预测一次并保存 pred.pkl；随后释放模型和 Alpha158 数据集。交易所只缓存预测中实际出现的股票，使用 PandasQuote 避免二次 float64 转换，并把回测期限制为 2019 年；backtest_analysis 创建提示是正常信息。"
+        "text": "免费 Colab 默认不创建 Exchange 或 PortAnaRecord，而是直接用预测与未来收益完成 2019 年 TopK 教学回测，避免行情缓存导致运行时退出。该流程不模拟涨跌停、停牌和最小成交金额；完整配置保留给本地或高内存环境。"
       }
     },
     {

@@ -376,65 +376,160 @@ with R.start(experiment_name="train_model"):
 print(f"模型训练完成，Recorder ID: {rid}")
 '@
 
+$lightweightBacktestExplanation = @'
+### 6.2 免费 Colab：轻量 TopK 回测
+
+完整的 `PortAnaRecord` 会创建交易所、行情缓存、账户和逐日成交对象，适合本地或有保证的运行时。免费 Colab 的默认流程改为等价的教学近似：
+
+1. 模型只生成一次预测，并立即释放 Alpha158 数据集；
+2. 仅按预测中实际出现的股票读取 2019 年单列未来收益，不创建交易所缓存；
+3. 每日保留上一期较高分股票、淘汰 5 只，再补足 Top 50；
+4. 用等权收益、换手率和交易费生成与 Qlib 报告兼容的四列结果。
+
+后续绩效图、风险分析、IC 和分组收益单元格无需修改。这里的结果用于课堂理解信号到组合的连接，不模拟涨跌停、停牌和最小成交金额；需要这些成交细节时，再在本地或高内存环境运行上一节给出的完整 `PortAnaRecord` 配置。
+'@
+
 $backtestWorkflow = @'
-# ==================== 低内存回测流程 ====================
-# 关键原则：模型只预测一次；交易所只缓存预测中出现的股票；
-# 组合回测直接读取 recorder 中的 pred.pkl。
-print("[1/4] 准备生成测试集预测信号……", flush=True)
-show_process_memory("信号生成前")
+# ==================== 免费 Colab 轻量 TopK 回测 ====================
+# 不创建 Qlib Exchange / PortAnaRecord，避免免费运行时的行情缓存峰值。
+from qlib.data import D
+from qlib.backtest.position import Position
+from qlib.contrib.evaluate import risk_analysis
+
+TOPK = 50
+N_DROP = 5
+OPEN_COST = 0.0005
+CLOSE_COST = 0.0015
+LABEL_EXPR = "Ref($close, -2) / Ref($close, -1) - 1"
+
+print("[1/4] 生成并保存测试集预测……", flush=True)
+show_process_memory("预测前")
 
 with R.start(experiment_name="backtest_analysis"):
     recorder = R.get_recorder()
     ba_rid = recorder.id
 
-    # 复用上一节内存中的训练模型，避免再从 MLflow 反序列化一份模型。
-    sr = SignalRecord(model, dataset, recorder)
-    sr.generate()
-    print("[2/4] pred.pkl 已保存；准备释放模型与 Alpha158 数据集……", flush=True)
+    pred_df = model.predict(dataset)
+    if isinstance(pred_df, pd.Series):
+        pred_df = pred_df.to_frame("score")
+    else:
+        pred_df.columns = ["score"]
 
-    # 从预测结果提取实际出现的股票，避免交易所解析整个动态股票池。
-    pred_for_scope = recorder.load_object("pred.pkl")
-    backtest_codes = sorted(pred_for_scope.index.get_level_values("instrument").unique())
-    del pred_for_scope
+    # 学生版回测只保留 2019 年，显著缩小后续标签和持仓计算。
+    pred_dates = pred_df.index.get_level_values("datetime")
+    pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
+    backtest_codes = sorted(pred_df.index.get_level_values("instrument").unique())
+    recorder.save_objects(**{"pred.pkl": pred_df})
 
-    # 后续 IC 分析只需要标签列。先保留这一列，然后释放完整特征数据。
-    label_df = dataset.prepare("test", col_set="label")
-    label_df.columns = ["label"]
-
-    del sr
+    print("[2/4] 释放模型和 Alpha158，再读取单列未来收益……", flush=True)
     for variable_name in ["model", "dataset", "handler", "task"]:
         globals().pop(variable_name, None)
     gc.collect()
-    show_process_memory("信号生成后、组合回测前")
+    show_process_memory("释放 Alpha158 后")
 
-    # 先单独创建交易所，便于看到进度。PandasQuote 是 Qlib 官方实现，
-    # 避免默认 NumpyQuote 再生成一套 float64 行情缓存。
-    print(
-        f"[3/4] 创建低内存交易所（{len(backtest_codes)} 只股票，"
-        f"截至 {LOW_MEMORY_BACKTEST_END}）……",
-        flush=True,
+    # 直接从 Qlib 行情读取一个表达式列，不再让 DatasetH 复制完整测试集。
+    label_df = D.features(
+        backtest_codes,
+        [LABEL_EXPR],
+        start_time=TEACHING_SEGMENTS["test"][0],
+        end_time=LOW_MEMORY_BACKTEST_END,
+        freq="day",
+        disk_cache=False,
     )
-    exchange_kwargs = dict(port_analysis_config["backtest"]["exchange_kwargs"])
-    exchange_kwargs["codes"] = backtest_codes
-    backtest_exchange = get_exchange(
-        start_time=port_analysis_config["backtest"]["start_time"],
-        end_time=port_analysis_config["backtest"]["end_time"],
-        **exchange_kwargs,
+    label_df.columns = ["label"]
+    label_df = label_df.reorder_levels(["datetime", "instrument"]).sort_index()
+
+    print("[3/4] 计算 TopK 持仓、换手率和组合收益……", flush=True)
+    signal_and_return = pd.concat([pred_df, label_df], axis=1, join="inner").dropna()
+    daily_returns = []
+    daily_turnover = []
+    trade_dates = []
+    positions = {}
+    previous_holdings = []
+
+    for trade_date, daily_frame in signal_and_return.groupby(level="datetime", sort=True):
+        daily_frame = daily_frame.droplevel("datetime").sort_values("score", ascending=False)
+        ranked_codes = daily_frame.index.tolist()
+        ranked_set = set(ranked_codes)
+
+        # 保留上一期仍可交易且分数较高的股票，每天最多淘汰 N_DROP 只。
+        surviving = [code for code in previous_holdings if code in ranked_set]
+        surviving.sort(key=lambda code: daily_frame.at[code, "score"], reverse=True)
+        keep_count = max(0, min(len(surviving), TOPK - N_DROP))
+        holdings = surviving[:keep_count]
+        holdings.extend(code for code in ranked_codes if code not in holdings)
+        holdings = holdings[:TOPK]
+
+        if not holdings:
+            continue
+
+        current_set = set(holdings)
+        if previous_holdings:
+            turnover = 1.0 - len(current_set.intersection(previous_holdings)) / len(holdings)
+        else:
+            turnover = 1.0
+
+        portfolio_return = float(daily_frame.loc[holdings, "label"].mean())
+        weight = 1.0 / len(holdings)
+        position_dict = {
+            code: {"amount": weight, "price": 1.0, "weight": weight}
+            for code in holdings
+        }
+        positions[pd.Timestamp(trade_date)] = Position(cash=0.0, position_dict=position_dict)
+
+        trade_dates.append(pd.Timestamp(trade_date))
+        daily_returns.append(portfolio_return)
+        daily_turnover.append(turnover)
+        previous_holdings = holdings
+
+    report_normal_df = pd.DataFrame(
+        {"return": daily_returns, "turnover": daily_turnover},
+        index=pd.DatetimeIndex(trade_dates, name="date"),
     )
-    port_analysis_config["backtest"]["exchange_kwargs"] = {"exchange": backtest_exchange}
-    gc.collect()
-    show_process_memory("低内存交易所创建后")
+    report_normal_df["cost"] = report_normal_df["turnover"] * (OPEN_COST + CLOSE_COST)
+    if len(report_normal_df):
+        report_normal_df.iloc[0, report_normal_df.columns.get_loc("cost")] = OPEN_COST
 
-    # port_analysis_config 使用 <PRED> 占位符；PortAnaRecord 会从当前
-    # recorder 读取 pred.pkl，不会再次调用模型预测或创建第二个交易所。
-    print("[4/4] 开始组合回测……", flush=True)
-    par = PortAnaRecord(recorder, port_analysis_config, "day")
-    par.generate()
-    del par, backtest_exchange
-    gc.collect()
-    show_process_memory("组合回测完成")
+    # 基准使用与 Alpha158 标签相同的未来收益口径，只读取一个指数、一列数据。
+    benchmark_df = D.features(
+        [benchmark],
+        [LABEL_EXPR],
+        start_time=TEACHING_SEGMENTS["test"][0],
+        end_time=LOW_MEMORY_BACKTEST_END,
+        freq="day",
+        disk_cache=False,
+    )
+    benchmark_return = benchmark_df.iloc[:, 0].droplevel("instrument")
+    benchmark_return.index = pd.DatetimeIndex(benchmark_return.index)
+    report_normal_df["bench"] = benchmark_return.reindex(report_normal_df.index).fillna(0.0)
+    report_normal_df = report_normal_df[["return", "cost", "bench", "turnover"]]
 
-print(f"回测完成，Recorder ID: {ba_rid}")
+    print("[4/4] 生成风险指标并保存兼容的教学产物……", flush=True)
+    analysis_df = pd.concat(
+        {
+            "excess_return_without_cost": risk_analysis(
+                report_normal_df["return"] - report_normal_df["bench"], freq="1day"
+            ),
+            "excess_return_with_cost": risk_analysis(
+                report_normal_df["return"] - report_normal_df["bench"] - report_normal_df["cost"],
+                freq="1day",
+            ),
+        }
+    )
+    recorder.save_objects(
+        artifact_path="portfolio_analysis",
+        **{
+            "report_normal_1day.pkl": report_normal_df,
+            "positions_normal_1day.pkl": positions,
+            "port_analysis_1day.pkl": analysis_df,
+        },
+    )
+
+    del signal_and_return, benchmark_df
+    gc.collect()
+    show_process_memory("轻量回测完成")
+
+print(f"轻量回测完成，共 {len(report_normal_df)} 个交易日，Recorder ID: {ba_rid}")
 '@
 
 $sqliteInit = @'
@@ -462,6 +557,10 @@ $newCells = [System.Collections.ArrayList]::new()
 for ($i = 4; $i -lt $source.cells.Count; $i++) {
     $cell = $source.cells[$i]
     $text = ($cell.source -join '')
+
+    if ($cell.cell_type -eq 'markdown' -and $text -match 'SignalRecord\.generate\(\)' -and $text -match 'PortAnaRecord\.generate\(\)') {
+        $text = $lightweightBacktestExplanation
+    }
 
     if ($cell.cell_type -eq 'code') {
         $text = $text.Replace("provider_uri =  './qlib_data/cn_data' # target_dir", "provider_uri = str(QLIB_DATA_DIR)  # Colab 与本地共用")
