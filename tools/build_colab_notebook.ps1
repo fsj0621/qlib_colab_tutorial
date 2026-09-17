@@ -84,6 +84,7 @@ $setup = @'
 import sys
 import subprocess
 from pathlib import Path
+from IPython.display import display
 
 if sys.version_info[:2] > (3, 12):
     raise RuntimeError(
@@ -871,7 +872,8 @@ def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, 
 '@
 
 $sqliteInit = @'
-mlflow_db = (Path("/content") if IN_COLAB else Path.cwd()) / "qlib_mlflow.db"
+# 本教程仅面向 Colab，直接把 MLflow 数据库放在临时运行时目录。
+mlflow_db = Path("/content/qlib_mlflow.db")
 exp_manager = {
     "class": "MLflowExpManager",
     "module_path": "qlib.workflow.expm",
@@ -903,7 +905,7 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
     if ($cell.cell_type -eq 'code') {
         $text = $text.Replace("provider_uri =  './qlib_data/cn_data' # target_dir", "provider_uri = str(QLIB_DATA_DIR)  # Colab 与本地共用")
         $text = $text.Replace('stock_features_path = Path("./qlib_data/cn_data/features/sh600000")', 'stock_features_path = QLIB_DATA_DIR / "features" / "sh600000"')
-        $text = $text.Replace('"num_threads": 20,', '"num_threads": max(1, min(4, os.cpu_count() or 2)),')
+        $text = $text.Replace('"num_threads": 20,', '"num_threads": 2,')
         $text = $text.Replace('qlib.init(provider_uri=provider_uri, region=REG_CN)', $sqliteInit)
         if ($text -match 'from qlib\.workflow\.record_temp import SignalRecord, PortAnaRecord') {
             $text = $text.Replace('from qlib.workflow.record_temp import SignalRecord, PortAnaRecord', "from qlib.workflow.record_temp import SignalRecord, PortAnaRecord`nfrom qlib.backtest.high_performance_ds import PandasQuote")
