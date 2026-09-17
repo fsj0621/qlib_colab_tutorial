@@ -8,47 +8,52 @@
   const owner = config.owner || inferredOwner;
   const repo = config.repo || inferredRepo;
   const branch = config.branch || "main";
-  const notebookPath = config.notebookPath || "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb";
-  const downloadPath = config.downloadPath || `downloads/${notebookPath.split("/").pop()}`;
-  const recoveryNotebookPath = config.recoveryNotebookPath || "";
+  const explorationNotebookPath = config.explorationNotebookPath || "notebooks/Qlib数据与因子探索_Colab教学版.ipynb";
+  const explorationDownloadPath = config.explorationDownloadPath || `downloads/${explorationNotebookPath.split("/").pop()}`;
+  const trainingNotebookPath = config.trainingNotebookPath || "notebooks/Qlib模型训练与回测_Colab教学版.ipynb";
+  const trainingDownloadPath = config.trainingDownloadPath || `downloads/${trainingNotebookPath.split("/").pop()}`;
 
-  const colabLinks = document.querySelectorAll("[data-colab-link]");
-  const recoveryColabLinks = document.querySelectorAll("[data-recovery-colab]");
+  const explorationColabLinks = document.querySelectorAll("[data-exploration-colab]");
+  const trainingColabLinks = document.querySelectorAll("[data-training-colab]");
   const githubLinks = document.querySelectorAll("[data-github-link]");
-  const downloadLinks = document.querySelectorAll("[data-notebook-download]");
+  const explorationDownloadLinks = document.querySelectorAll("[data-exploration-download]");
+  const trainingDownloadLinks = document.querySelectorAll("[data-training-download]");
   const deploymentHint = document.querySelector("[data-deployment-hint]");
   const colabDialog = document.querySelector("[data-colab-dialog]");
 
-  const configureDownloadLinks = (url) => {
-    downloadLinks.forEach((link) => {
+  const configureDownloadLinks = (links, url, filename) => {
+    links.forEach((link) => {
       link.href = url;
-      link.setAttribute("download", notebookPath.split("/").pop());
+      link.setAttribute("download", filename);
     });
   };
 
   // Keep downloads on the same origin. Browsers may ignore the `download`
   // attribute for cross-origin GitHub raw URLs and open the JSON as a page.
-  configureDownloadLinks(new URL(encodeURI(downloadPath), document.baseURI).href);
+  configureDownloadLinks(
+    explorationDownloadLinks,
+    new URL(encodeURI(explorationDownloadPath), document.baseURI).href,
+    explorationNotebookPath.split("/").pop()
+  );
+  configureDownloadLinks(
+    trainingDownloadLinks,
+    new URL(encodeURI(trainingDownloadPath), document.baseURI).href,
+    trainingNotebookPath.split("/").pop()
+  );
 
   if (owner && repo) {
     const githubUrl = `https://github.com/${owner}/${repo}`;
-    const colabUrl = `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(notebookPath)}`;
-    const recoveryColabUrl = recoveryNotebookPath
-      ? `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(recoveryNotebookPath)}`
-      : "";
-    colabLinks.forEach((link) => {
-      link.href = colabUrl;
+    const explorationColabUrl = `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(explorationNotebookPath)}`;
+    const trainingColabUrl = `https://colab.research.google.com/github/${owner}/${repo}/blob/${branch}/${encodeURI(trainingNotebookPath)}`;
+    explorationColabLinks.forEach((link) => {
+      link.href = explorationColabUrl;
       // Some embedded browsers silently block links that open a new tab.
       // Keep Colab navigation in the current tab so one click always works.
       link.target = "_self";
       link.removeAttribute("rel");
     });
-    recoveryColabLinks.forEach((link) => {
-      if (!recoveryColabUrl) {
-        link.hidden = true;
-        return;
-      }
-      link.href = recoveryColabUrl;
+    trainingColabLinks.forEach((link) => {
+      link.href = trainingColabUrl;
       link.target = "_self";
       link.removeAttribute("rel");
     });
@@ -59,14 +64,14 @@
     });
     if (deploymentHint) deploymentHint.hidden = true;
   } else {
-    colabLinks.forEach((link) => {
+    explorationColabLinks.forEach((link) => {
       link.href = "#colab-setup";
       link.addEventListener("click", (event) => {
         event.preventDefault();
         if (typeof colabDialog?.showModal === "function") colabDialog.showModal();
       });
     });
-    recoveryColabLinks.forEach((link) => {
+    trainingColabLinks.forEach((link) => {
       link.href = "#colab-setup";
       link.addEventListener("click", (event) => {
         event.preventDefault();

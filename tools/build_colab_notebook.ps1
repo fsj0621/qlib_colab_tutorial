@@ -552,7 +552,7 @@ with R.start(experiment_name="backtest_analysis"):
     if IN_COLAB:
         from google.colab import files
 
-        print("浏览器将下载检查点；如果运行时被回收，请在“绩效分析恢复版”中上传它。", flush=True)
+        print("浏览器将下载检查点；如果运行时被回收，可在训练回测篇的 6.3 节上传它。", flush=True)
         files.download(str(checkpoint_path))
 
     del signal_and_return, benchmark_df
@@ -571,8 +571,8 @@ required_analysis_objects = [
 missing_analysis_objects = [name for name in required_analysis_objects if name not in globals()]
 if missing_analysis_objects:
     raise RuntimeError(
-        "当前运行时没有分析数据。请打开网页中的“绩效分析恢复版”，"
-        "上传 qlib_analysis_checkpoint.pkl.gz 后继续。"
+        "当前运行时没有分析数据。请从训练流程重新运行，"
+        "或在训练回测篇的 6.3 节上传 qlib_analysis_checkpoint.pkl.gz。"
     )
 
 print("轻量回测结果已在内存中，可直接进行绩效与 IC 分析。")
@@ -792,10 +792,4 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 $json = $output | ConvertTo-Json -Depth 100
 [System.IO.File]::WriteAllText($OutputNotebook, $json, [System.Text.UTF8Encoding]::new($false))
 Write-Output "Created $OutputNotebook"
-
-$projectRoot = Split-Path -Parent $PSScriptRoot
-$downloadDirectory = Join-Path $projectRoot 'docs\downloads'
-$downloadNotebook = Join-Path $downloadDirectory 'Qlib量化投资工作流教程_Colab学生版.ipynb'
-New-Item -ItemType Directory -Path $downloadDirectory -Force | Out-Null
-Copy-Item -LiteralPath $OutputNotebook -Destination $downloadNotebook -Force
-Write-Output "Synced download copy to $downloadNotebook"
+Write-Output "Next: run scripts/build_split_notebooks.py to generate the two student-facing notebooks."

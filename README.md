@@ -3,7 +3,7 @@
 这是一个可承载多门课程的静态教程网站。当前已发布 Qlib 量化投资工作流教程，包含：
 
 - 课程目录、课程首页与配置驱动的讲解模式；
-- 清除大型输出后的 Colab 学生版 Notebook；
+- 两本独立的 Colab Notebook：数据与因子探索、模型训练与回测；
 - 内嵌回测辅助函数，Notebook 可作为单文件运行；
 - GitHub Pages、Colab 与同源下载链接；
 - 固定版本的 Colab 依赖清单。
@@ -38,9 +38,9 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 
 ```powershell
 python scripts/build_tutorial_content.py `
-  --input "docs/downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" `
+  --input "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb" `
   --output "docs/courses/qlib-notebook.json" `
-  --revision "v1.0.10"
+  --revision "v1.1.0"
 ```
 
 课程配置中的 `notebookContent` 指向生成结果。更新已发布 Notebook 后重新运行此命令，网页讲解内容就会同步更新。
@@ -59,7 +59,7 @@ python scripts/build_tutorial_content.py `
 
 Notebook 固定使用 Colab `2026.07` 运行时（Python 3.12.13），因为 `pyqlib==0.9.7` 暂无 Python 3.13 安装包。若已经连接到 Python 3.13，请在 **代码执行程序 → 更改运行时类型 → 运行时版本** 中选择 `2026.07`，然后重新运行。
 
-`v1.0.10` 采用免费 Colab 两段式教学流程：raw / infer / learn 由一个月的小型 Alpha158 处理器演示，随后整体释放；模型只生成一次预测，2019 年标签按单个表达式读取，默认回测用 TopK=50、每日最多替换 5 只、等权收益、换手率和交易费生成教学产物。回测完成后会自动下载 `qlib_analysis_checkpoint.pkl.gz`。如果免费运行时随后被整体回收，可打开独立的“绩效分析恢复版” Notebook，上传检查点后直接继续第 7 节，无需重新训练或下载行情数据。
+`v1.1.0` 将课堂实践拆成两个独立运行时。第一部分只讲数据、表达式特征与一个月的 Alpha158 小样本，不创建正式训练集；完成后主动删除运行时。第二部分从干净环境独立创建唯一一套正式 Alpha158，完成 LightGBM、2019 年轻量 TopK 回测和绩效分析。回测后仍会自动下载 `qlib_analysis_checkpoint.pkl.gz`，断线恢复入口已合并到第二本 Notebook 的 6.3 节。
 
 Qlib 当前 README 说明官方数据下载暂时停用，因此 Notebook 使用其推荐的社区数据镜像：
 
@@ -77,12 +77,13 @@ powershell -ExecutionPolicy Bypass -File tools/build_colab_notebook.ps1 `
   -SupportModule "源文件路径\Utils_backtest.py" `
   -OutputNotebook "notebooks\Qlib量化投资工作流教程_Colab学生版.ipynb"
 
-python scripts/build_analysis_recovery_notebook.py `
+python scripts/build_split_notebooks.py `
   --input "notebooks\Qlib量化投资工作流教程_Colab学生版.ipynb" `
-  --output "notebooks\Qlib绩效分析_Colab恢复版.ipynb"
+  --exploration-output "notebooks\Qlib数据与因子探索_Colab教学版.ipynb" `
+  --training-output "notebooks\Qlib模型训练与回测_Colab教学版.ipynb"
 ```
 
-主生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；恢复版生成器会提取第 7 节并加入检查点上传流程。发布前将两个 Notebook 同步到 `docs/downloads/`。
+主生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；拆分生成器会创建相互独立的探索篇和训练回测篇，并把断线恢复合并到后者。发布前将两本 Notebook 同步到 `docs/downloads/`。
 
 ## 版权
 

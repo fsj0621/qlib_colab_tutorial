@@ -86,6 +86,8 @@
 
   const lesson = (module, index, total, nextModule, notebookModule, revision) => {
     const id = `module-${module.number}`;
+    const notebookPart = module.notebookPart === "training" ? "training" : "exploration";
+    const notebookLabel = notebookPart === "training" ? "在训练回测篇中运行" : "在数据探索篇中运行";
     const next = index < total - 1 ? `<div class="lesson-next"><span>下一节</span><a href="#module-${nextModule.number}">${escapeHtml(nextModule.shortTitle || nextModule.title)} →</a></div>` : "";
     return `
       <section class="lesson" id="${id}" data-module-section>
@@ -94,6 +96,7 @@
           <div><div class="lesson-kicker">Module ${escapeHtml(module.number)}</div><h1>${escapeHtml(module.title)}</h1><p>${escapeHtml(module.summary)}</p></div>
         </div>
         <div class="lesson-meta"><span>◷ ${escapeHtml(module.duration)}</span><span>Notebook：${escapeHtml(module.notebookSection)}</span></div>
+        <div class="lesson-notebook-action"><a class="button button-small ${notebookPart === "training" ? "button-primary" : "button-ghost"}" data-module-notebook="${notebookPart}" target="_self" href="#">${notebookLabel} ↗</a></div>
         <div class="objective-box"><h2>学习目标</h2><ul>${module.objectives.map((item) => `<li>${inline(item)}</li>`).join("")}</ul></div>
         ${metrics(module.metrics)}
         ${notebookWalkthrough(notebookModule, revision)}
@@ -149,29 +152,26 @@
       notebookContent?.revision || course.version
     )).join("") + `
       <div class="course-finish">
-        <div><span class="lesson-kicker">完成课程</span><h2>回到 Notebook 完成练习</h2></div>
+        <div><span class="lesson-kicker">两阶段实践</span><h2>选择对应 Notebook 完成练习</h2></div>
         <div class="hero-actions">
-          <a class="button button-ghost" data-course-recovery target="_self" href="#">断线后恢复分析 ↗</a>
-          <a class="button button-primary" data-course-colab target="_self" href="#">打开 Colab ↗</a>
+          <a class="button button-ghost" data-course-exploration target="_self" href="#">第一部分：数据探索 ↗</a>
+          <a class="button button-primary" data-course-training target="_self" href="#">第二部分：训练与回测 ↗</a>
         </div>
       </div>`;
 
-    const colabUrl = `https://colab.research.google.com/github/${course.owner}/${course.repo}/blob/${course.release}/${encodeURI(course.notebookPath)}`;
-    const recoveryColabUrl = course.recoveryNotebookPath
-      ? `https://colab.research.google.com/github/${course.owner}/${course.repo}/blob/${course.release}/${encodeURI(course.recoveryNotebookPath)}`
-      : "";
-    const downloadUrl = new URL(encodeURI(course.downloadPath), document.baseURI).href;
-    document.querySelectorAll("[data-course-colab]").forEach((link) => { link.href = colabUrl; });
-    document.querySelectorAll("[data-course-recovery]").forEach((link) => {
-      if (!recoveryColabUrl) {
-        link.hidden = true;
-      } else {
-        link.href = recoveryColabUrl;
-      }
+    const explorationColabUrl = `https://colab.research.google.com/github/${course.owner}/${course.repo}/blob/${course.release}/${encodeURI(course.explorationNotebookPath)}`;
+    const trainingColabUrl = `https://colab.research.google.com/github/${course.owner}/${course.repo}/blob/${course.release}/${encodeURI(course.trainingNotebookPath)}`;
+    const explorationDownloadUrl = new URL(encodeURI(course.explorationDownloadPath), document.baseURI).href;
+    const trainingDownloadUrl = new URL(encodeURI(course.trainingDownloadPath), document.baseURI).href;
+    document.querySelectorAll("[data-course-exploration], [data-module-notebook='exploration']").forEach((link) => { link.href = explorationColabUrl; });
+    document.querySelectorAll("[data-course-training], [data-module-notebook='training']").forEach((link) => { link.href = trainingColabUrl; });
+    document.querySelectorAll("[data-course-exploration-download]").forEach((link) => {
+      link.href = explorationDownloadUrl;
+      link.setAttribute("download", course.explorationNotebookPath.split("/").pop());
     });
-    document.querySelectorAll("[data-course-download]").forEach((link) => {
-      link.href = downloadUrl;
-      link.setAttribute("download", course.notebookPath.split("/").pop());
+    document.querySelectorAll("[data-course-training-download]").forEach((link) => {
+      link.href = trainingDownloadUrl;
+      link.setAttribute("download", course.trainingNotebookPath.split("/").pop());
     });
     initializeNavigation();
     if (window.location.hash) {

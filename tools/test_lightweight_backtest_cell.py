@@ -14,8 +14,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-NOTEBOOK = ROOT / "notebooks" / "Qlib量化投资工作流教程_Colab学生版.ipynb"
-RECOVERY_NOTEBOOK = ROOT / "notebooks" / "Qlib绩效分析_Colab恢复版.ipynb"
+NOTEBOOK = ROOT / "notebooks" / "Qlib模型训练与回测_Colab教学版.ipynb"
 
 
 class FakePosition:
@@ -166,20 +165,24 @@ def main():
     checkpoint_path = environment["checkpoint_path"]
     assert checkpoint_path.exists() and checkpoint_path.stat().st_size > 0
 
-    recovery_notebook = json.loads(RECOVERY_NOTEBOOK.read_text(encoding="utf-8-sig"))
-    recovery_setup = next(
-        "".join(cell.get("source", []))
-        for cell in recovery_notebook["cells"]
-        if cell.get("cell_type") == "code" and "分析环境准备完成" in "".join(cell.get("source", []))
-    )
+    recovery_notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8-sig"))
     recovery_loader = next(
         "".join(cell.get("source", []))
         for cell in recovery_notebook["cells"]
         if cell.get("cell_type") == "code" and "checkpoint = pickle.load" in "".join(cell.get("source", []))
     )
-    recovery_environment = {"IN_COLAB": False}
-    exec(compile(recovery_setup, str(RECOVERY_NOTEBOOK), "exec"), recovery_environment)
-    exec(compile(recovery_loader, str(RECOVERY_NOTEBOOK), "exec"), recovery_environment)
+    recovery_loader = recovery_loader.replace(
+        "RESTORE_ANALYSIS_CHECKPOINT = False",
+        "RESTORE_ANALYSIS_CHECKPOINT = True",
+    )
+    google_module = types.ModuleType("google")
+    colab_module = types.ModuleType("google.colab")
+    colab_module.files = types.SimpleNamespace(
+        upload=lambda: {checkpoint_path.name: checkpoint_path.read_bytes()}
+    )
+    sys.modules.update({"google": google_module, "google.colab": colab_module})
+    recovery_environment = {"pd": pd}
+    exec(compile(recovery_loader, str(NOTEBOOK), "exec"), recovery_environment)
     assert recovery_environment["report_normal_df"].equals(report)
     assert len(recovery_environment["positions"]) == len(positions)
     assert recovery_environment["pred_df"].equals(environment["pred_df"])

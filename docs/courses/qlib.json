@@ -4,19 +4,20 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.0.10",
+  "version": "v1.1.0",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.0.10",
-  "notebookPath": "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
-  "downloadPath": "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
-  "recoveryNotebookPath": "notebooks/Qlib绩效分析_Colab恢复版.ipynb",
-  "recoveryDownloadPath": "downloads/Qlib绩效分析_Colab恢复版.ipynb",
+  "release": "v1.1.0",
+  "explorationNotebookPath": "notebooks/Qlib数据与因子探索_Colab教学版.ipynb",
+  "explorationDownloadPath": "downloads/Qlib数据与因子探索_Colab教学版.ipynb",
+  "trainingNotebookPath": "notebooks/Qlib模型训练与回测_Colab教学版.ipynb",
+  "trainingDownloadPath": "downloads/Qlib模型训练与回测_Colab教学版.ipynb",
   "notebookContent": "courses/qlib-notebook.json",
   "modules": [
     {
       "number": 1,
+      "notebookPart": "exploration",
       "title": "环境与数据准备",
       "shortTitle": "环境与数据准备",
       "duration": "15 min",
@@ -53,6 +54,7 @@
     },
     {
       "number": 2,
+      "notebookPart": "exploration",
       "title": "初始化 Qlib",
       "shortTitle": "初始化 Qlib",
       "duration": "10 min",
@@ -89,6 +91,7 @@
     },
     {
       "number": 3,
+      "notebookPart": "exploration",
       "title": "行情数据探索",
       "shortTitle": "行情数据探索",
       "duration": "30 min",
@@ -125,6 +128,7 @@
     },
     {
       "number": 4,
+      "notebookPart": "exploration",
       "title": "Alpha158 因子",
       "shortTitle": "Alpha158 因子",
       "duration": "35 min",
@@ -161,6 +165,7 @@
     },
     {
       "number": 5,
+      "notebookPart": "training",
       "title": "LightGBM 训练",
       "shortTitle": "LightGBM 训练",
       "duration": "40 min",
@@ -197,6 +202,7 @@
     },
     {
       "number": 6,
+      "notebookPart": "training",
       "title": "TopK 策略回测",
       "shortTitle": "TopK 策略回测",
       "duration": "40 min",
@@ -229,11 +235,12 @@
       "note": {
         "tone": "warning",
         "title": "低内存回测",
-        "text": "免费 Colab 默认不创建 Exchange 或 PortAnaRecord。回测完成后浏览器会自动下载 qlib_analysis_checkpoint.pkl.gz；请保留该文件。如果虚拟机随后被回收，可用“绩效分析恢复版”上传它并继续第 7 节。"
+        "text": "训练回测篇从全新运行时开始，不承接探索篇缓存。回测完成后浏览器会自动下载 qlib_analysis_checkpoint.pkl.gz；若随后断线，可在同一本 Notebook 的 6.3 节恢复。"
       }
     },
     {
       "number": 7,
+      "notebookPart": "training",
       "title": "绩效与 IC 诊断",
       "shortTitle": "绩效与 IC 诊断",
       "duration": "60 min",
@@ -271,7 +278,7 @@
       },
       "note": {
         "title": "结束判断",
-        "text": "如果运行时仍在线可直接继续；如果变量丢失，请打开页面顶部的“恢复第 7 节”，上传主 Notebook 下载的检查点。无需重新训练或下载行情。"
+        "text": "如果运行时仍在线可直接继续；如果变量丢失，请在训练回测篇的 6.3 节上传检查点，然后继续第 7 节，无需重新训练或下载行情。"
       }
     }
   ]

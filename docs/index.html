@@ -22,7 +22,7 @@
       </nav>
       <div class="nav-actions">
         <button class="icon-button" data-theme-toggle aria-label="切换明暗主题">◐</button>
-        <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.10/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>在 Colab 中运行</span> ↗</a>
+        <a class="button button-primary" data-exploration-colab target="_self" href="#">打开探索篇 ↗</a>
         <button class="menu-button" data-menu-toggle aria-label="打开菜单" aria-expanded="false">☰</button>
       </div>
     </div>
@@ -34,15 +34,14 @@
         <div>
           <div class="eyebrow">Qlib 实践教程</div>
           <h1>完成一次<br><span class="gradient-text">量化研究</span></h1>
-          <p class="lead">在 Colab 中依次完成数据读取、Alpha158 因子、LightGBM 训练、TopK 回测和绩效诊断，无需配置本地环境。</p>
+          <p class="lead">两本独立 Colab：先讲数据与 Alpha158 因子，再用全新运行时完成 LightGBM、TopK 回测和绩效诊断。</p>
           <div class="hero-actions">
-            <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.10/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>在 Google Colab 中运行</span> ↗</a>
-            <a class="button button-ghost" data-recovery-colab target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.10/notebooks/Qlib%E7%BB%A9%E6%95%88%E5%88%86%E6%9E%90_Colab%E6%81%A2%E5%A4%8D%E7%89%88.ipynb">断线后恢复分析 ↗</a>
+            <a class="button button-primary" data-exploration-colab target="_self" href="#">第一部分：数据探索 ↗</a>
+            <a class="button button-ghost" data-training-colab target="_self" href="#">第二部分：训练与回测 ↗</a>
             <a class="button button-ghost" href="tutorial.html?course=qlib">进入讲解模式</a>
-            <a class="button button-ghost" data-notebook-download href="downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" download="Qlib量化投资工作流教程_Colab学生版.ipynb">下载 Notebook（.ipynb）</a>
           </div>
           <div class="hero-meta" aria-label="教程概况">
-            <span>约 3 小时</span><span>7 个模块</span><span>Python 3.12</span>
+            <span>2 本 Notebook</span><span>7 个模块</span><span>Python 3.12</span>
           </div>
           <p class="deployment-hint" data-deployment-hint>当前为本地预览，尚未连接 GitHub 仓库；“在 Colab 中运行”会说明如何启用，下载是单独的操作。</p>
         </div>
@@ -85,22 +84,24 @@
       <div class="shell start-layout">
         <div class="section-heading reveal">
           <div class="eyebrow">如何运行</div>
-          <h2>三步开始实验</h2>
-          <p>只需要一个可以使用 Colab 的 Google 账号。</p>
+          <h2>分两次完成实验</h2>
+          <p>两部分彼此独立，中间主动清空运行时，训练阶段更稳定。</p>
         </div>
         <ol class="start-steps reveal">
-          <li><span>1</span><div><strong>打开 Notebook</strong><p>点击下方按钮进入 Colab。</p></div></li>
-          <li><span>2</span><div><strong>运行全部</strong><p>选择“运行时 → 全部运行”。</p></div></li>
-          <li><span>3</span><div><strong>完成练习</strong><p>按顺序查看结果并回答问题。</p></div></li>
+          <li><span>1</span><div><strong>完成数据探索</strong><p>运行第一部分，讲解数据、表达式和 Alpha158 小样本。</p></div></li>
+          <li><span>2</span><div><strong>清空运行时</strong><p>选择“断开连接并删除运行时”，释放探索阶段缓存。</p></div></li>
+          <li><span>3</span><div><strong>完成训练与回测</strong><p>在第二部分的新运行时中选择“全部运行”。</p></div></li>
         </ol>
         <div class="start-actions reveal">
           <div>
-            <strong>首次准备约 5–15 分钟</strong>
-            <p>环境和数据会自动下载；Notebook 固定使用 Python 3.12 运行时。</p>
+            <strong>两本都可以独立打开</strong>
+            <p>环境和数据会自动准备；第二部分不依赖第一部分留下的变量。</p>
           </div>
           <div class="hero-actions">
-            <a class="button button-primary" data-colab-link target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.10/notebooks/Qlib%E9%87%8F%E5%8C%96%E6%8A%95%E8%B5%84%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%95%99%E7%A8%8B_Colab%E5%AD%A6%E7%94%9F%E7%89%88.ipynb"><span data-link-label>在 Colab 中运行</span> ↗</a>
-            <a class="button button-ghost" data-recovery-colab target="_self" href="https://colab.research.google.com/github/fsj0621/qlib_colab_tutorial/blob/v1.0.10/notebooks/Qlib%E7%BB%A9%E6%95%88%E5%88%86%E6%9E%90_Colab%E6%81%A2%E5%A4%8D%E7%89%88.ipynb">恢复第 7 节 ↗</a>
+            <a class="button button-primary" data-exploration-colab target="_self" href="#">打开第一部分 ↗</a>
+            <a class="button button-ghost" data-training-colab target="_self" href="#">打开第二部分 ↗</a>
+            <a class="text-link" data-exploration-download href="#">下载探索篇</a>
+            <a class="text-link" data-training-download href="#">下载训练回测篇</a>
             <a class="text-link" data-github-link href="#">查看 GitHub 仓库</a>
           </div>
         </div>
@@ -126,7 +127,8 @@
       <li>再次点击按钮，即可自动跳转 Colab。</li>
     </ol>
     <div class="dialog-actions">
-      <a class="button button-primary" data-notebook-download href="downloads/Qlib量化投资工作流教程_Colab学生版.ipynb" download="Qlib量化投资工作流教程_Colab学生版.ipynb">先下载 Notebook（.ipynb）</a>
+      <a class="button button-primary" data-exploration-download href="#">下载探索篇</a>
+      <a class="button button-ghost" data-training-download href="#">下载训练回测篇</a>
       <button class="button button-ghost" data-dialog-close>知道了</button>
     </div>
   </dialog>

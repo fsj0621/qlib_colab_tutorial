@@ -4,9 +4,9 @@ window.TUTORIAL_CONFIG = {
   owner: "fsj0621",
   repo: "qlib_colab_tutorial",
   // 固定到经过验证的教学版本，避免 GitHub/Colab 缓存到旧 Notebook。
-  branch: "v1.0.10",
-  notebookPath: "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb",
-  downloadPath: "downloads/Qlib量化投资工作流教程_Colab学生版.ipynb",
-  recoveryNotebookPath: "notebooks/Qlib绩效分析_Colab恢复版.ipynb",
-  recoveryDownloadPath: "downloads/Qlib绩效分析_Colab恢复版.ipynb",
+  branch: "v1.1.0",
+  explorationNotebookPath: "notebooks/Qlib数据与因子探索_Colab教学版.ipynb",
+  explorationDownloadPath: "downloads/Qlib数据与因子探索_Colab教学版.ipynb",
+  trainingNotebookPath: "notebooks/Qlib模型训练与回测_Colab教学版.ipynb",
+  trainingDownloadPath: "downloads/Qlib模型训练与回测_Colab教学版.ipynb",
 };

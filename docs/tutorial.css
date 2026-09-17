@@ -183,6 +183,7 @@ code { padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; back
 .course-finish { margin-top: 34px; padding: 28px; display: flex; justify-content: space-between; align-items: center; gap: 22px; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(130deg, rgba(56,189,248,.12), rgba(45,212,191,.1)); }
 .course-finish h2 { margin: 5px 0 0; font-size: 24px; }
 .course-content > .course-finish { margin-bottom: 86px; }
+.lesson-notebook-action { margin: 14px 0 22px; }
 
 .toc-toggle { display: none; }
 .sidebar-scrim { display: none; }
