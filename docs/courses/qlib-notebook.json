@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "source": "Qlib量化投资工作流教程_Colab学生版.ipynb",
-  "revision": "v1.1.7",
+  "revision": "v1.1.8",
   "cellCount": 172,
   "modules": [
     {
@@ -766,8 +766,8 @@
             {
               "type": "code",
               "cell": 76,
-              "source": "# ==================== Qlib 低内存信号与标准组合回测 ====================\nimport gc\n\n# SignalRecord.generate() 会额外读取 raw 标签，与 drop_raw=True 冲突。\n# 这里执行它的核心步骤：预测一次，并把 pred.pkl 保存到当前 recorder。\nprint(\"[1/4] 从 infer 数据保留测试集标签……\", flush=True)\nlabel_df = dataset.prepare(\"test\", col_set=\"label\", data_key=\"infer\")\nlabel_df.columns = [\"label\"]\nlabel_dates = label_df.index.get_level_values(\"datetime\")\nlabel_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\nprint(f\"已保留 {len(label_df):,} 行标签。\", flush=True)\n\nprint(\"[2/4] 模型生成测试集预测……\", flush=True)\nshow_process_memory(\"预测前\")\npred_df = model.predict(dataset)\nif isinstance(pred_df, pd.Series):\n    pred_df = pred_df.to_frame(\"score\")\npred_dates = pred_df.index.get_level_values(\"datetime\")\npred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\nbacktest_codes = sorted(pred_df.index.get_level_values(\"instrument\").unique())\nport_analysis_config[\"backtest\"][\"exchange_kwargs\"][\"codes\"] = backtest_codes\n\nwith R.start(experiment_name=\"backtest_analysis\"):\n    recorder = R.get_recorder()\n    ba_rid = recorder.id\n    recorder.save_objects(**{\"pred.pkl\": pred_df})\n    print(f\"预测已保存：{len(pred_df):,} 行，{len(backtest_codes)} 只股票。\", flush=True)\n\n    print(\"[3/4] 释放模型与 Alpha158，准备标准组合回测……\", flush=True)\n    del pred_df\n    for variable_name in [\"model\", \"dataset\", \"handler\", \"task\"]:\n        globals().pop(variable_name, None)\n    gc.collect()\n    show_process_memory(\"组合回测前\")\n\n    print(\"[4/4] PortAnaRecord 执行 2019 年 TopK 回测……\", flush=True)\n    par = PortAnaRecord(recorder, port_analysis_config, \"day\")\n    par.generate()\n    del par\n    gc.collect()\n    show_process_memory(\"组合回测完成\")\n\nprint(f\"标准回测完成，Recorder ID: {ba_rid}\")",
-              "lineCount": 43,
+              "source": "# ==================== Qlib 低内存信号与标准组合回测 ====================\nimport gc\n\n# SignalRecord.generate() 会额外读取 raw 标签，与 drop_raw=True 冲突。\n# 这里执行它的核心步骤：预测一次，并把 pred.pkl 保存到当前 recorder。\nprint(\"[1/4] 从 infer 数据保留测试集标签……\", flush=True)\nlabel_df = dataset.prepare(\"test\", col_set=\"label\", data_key=\"infer\")\nlabel_df.columns = [\"label\"]\nlabel_dates = label_df.index.get_level_values(\"datetime\")\nlabel_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\nprint(f\"已保留 {len(label_df):,} 行标签。\", flush=True)\n\nprint(\"[2/4] 模型生成测试集预测……\", flush=True)\nshow_process_memory(\"预测前\")\npred_df = model.predict(dataset)\nif isinstance(pred_df, pd.Series):\n    pred_df = pred_df.to_frame(\"score\")\npred_dates = pred_df.index.get_level_values(\"datetime\")\npred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\nbacktest_codes = sorted(pred_df.index.get_level_values(\"instrument\").unique())\nport_analysis_config[\"backtest\"][\"exchange_kwargs\"][\"codes\"] = backtest_codes\n\nwith R.start(experiment_name=\"backtest_analysis\"):\n    recorder = R.get_recorder()\n    ba_rid = recorder.id\n    recorder.save_objects(**{\"pred.pkl\": pred_df})\n    print(f\"预测已保存：{len(pred_df):,} 行，{len(backtest_codes)} 只股票。\", flush=True)\n\n    print(\"[3/4] 释放模型与 Alpha158，准备标准组合回测……\", flush=True)\n    for variable_name in [\"model\", \"dataset\", \"handler\", \"task\"]:\n        globals().pop(variable_name, None)\n    gc.collect()\n    show_process_memory(\"组合回测前\")\n\n    print(\"[4/4] PortAnaRecord 执行 2019 年 TopK 回测……\", flush=True)\n    par = PortAnaRecord(recorder, port_analysis_config, \"day\")\n    backtest_artifacts = par.generate()\n\n    # PortAnaRecord 已返回这些小型分析对象，直接保留给第 7 节使用。\n    # 这样后续单元不必再次通过 MLflow 临时文件系统反序列化。\n    report_normal_df = backtest_artifacts[\"report_normal_1day.pkl\"]\n    positions = backtest_artifacts[\"positions_normal_1day.pkl\"]\n    analysis_df = backtest_artifacts[\"port_analysis_1day.pkl\"]\n    del backtest_artifacts\n    del par\n    gc.collect()\n    show_process_memory(\"组合回测完成\")\n\nprint(f\"标准回测完成，Recorder ID: {ba_rid}\")",
+              "lineCount": 49,
               "collapsed": true,
               "omitted": false,
               "exercise": false,
@@ -813,8 +813,8 @@
             {
               "type": "code",
               "cell": 79,
-              "source": "from qlib.contrib.report import analysis_model, analysis_position\n\n# 从当前回测实验读取预测、组合报告、持仓和风险分析。\nrecorder = R.get_recorder(\n    recorder_id=ba_rid,\n    experiment_name=\"backtest_analysis\",\n)\nprint(recorder)",
-              "lineCount": 8,
+              "source": "from qlib.contrib.report import analysis_model, analysis_position\n\n# 获取当前回测实验；预测和回测结果已由上一节保留在内存中。\nrecorder = R.get_recorder(\n    recorder_id=ba_rid,\n    experiment_name=\"backtest_analysis\",\n)\nprint(recorder)\nprint(\"分析数据已就绪，请继续顺序运行下面的单元格。\")",
+              "lineCount": 9,
               "collapsed": false,
               "omitted": false,
               "exercise": false,
@@ -834,8 +834,8 @@
             {
               "type": "code",
               "cell": 81,
-              "source": "# ==================== 加载预测结果 ====================\npred_df = recorder.load_object(\"pred.pkl\")\npred_dates = pred_df.index.get_level_values(\"datetime\")\npred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\n\npred_info = pd.DataFrame({\n    \"属性\": [\n        \"数据形状\", \"列名\", \"索引名称\", \"日期范围（开始）\", \"日期范围（结束）\", \"股票数量\"\n    ],\n    \"值\": [\n        f\"{pred_df.shape[0]:,} × {pred_df.shape[1]}\",\n        \", \".join(pred_df.columns.tolist()),\n        \", \".join(pred_df.index.names),\n        str(pred_df.index.get_level_values(\"datetime\").min()),\n        str(pred_df.index.get_level_values(\"datetime\").max()),\n        f\"{len(pred_df.index.get_level_values('instrument').unique()):,}\",\n    ],\n}).set_index(\"属性\")\n\nprint(\"\\n【预测数据概览】\")\ndisplay(pred_info)\nprint(\"\\n【预测数据预览（前5行）】\")\ndisplay(pred_df.head(5))",
-              "lineCount": 23,
+              "source": "# ==================== 加载预测结果 ====================\nif \"pred_df\" not in globals():\n    pred_df = recorder.load_object(\"pred.pkl\")\nelse:\n    print(\"复用回测单元保留的预测数据。\")\npred_dates = pred_df.index.get_level_values(\"datetime\")\npred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\n\npred_info = pd.DataFrame({\n    \"属性\": [\n        \"数据形状\", \"列名\", \"索引名称\", \"日期范围（开始）\", \"日期范围（结束）\", \"股票数量\"\n    ],\n    \"值\": [\n        f\"{pred_df.shape[0]:,} × {pred_df.shape[1]}\",\n        \", \".join(pred_df.columns.tolist()),\n        \", \".join(pred_df.index.names),\n        str(pred_df.index.get_level_values(\"datetime\").min()),\n        str(pred_df.index.get_level_values(\"datetime\").max()),\n        f\"{len(pred_df.index.get_level_values('instrument').unique()):,}\",\n    ],\n}).set_index(\"属性\")\n\nprint(\"\\n【预测数据概览】\")\ndisplay(pred_info)\nprint(\"\\n【预测数据预览（前5行）】\")\ndisplay(pred_df.head(5))",
+              "lineCount": 26,
               "collapsed": true,
               "omitted": false,
               "exercise": false,
@@ -855,8 +855,8 @@
             {
               "type": "code",
               "cell": 83,
-              "source": "# ==================== 加载标准回测数据 ====================\nreport_normal_df, positions, analysis_df = load_backtest_data(\n    recorder,\n    analysis_freq=\"1day\",\n)\ndata_info = get_backtest_data_info(report_normal_df, positions, analysis_df)\n\nprint(\"\\n【回测报告信息】\")\ndisplay(data_info[\"report_info\"])\nprint(\"\\n【回测报告预览（前5行）】\")\ndisplay(report_normal_df.head(5))\nprint(\"\\n【回测报告统计摘要】\")\ndisplay(report_normal_df.describe().style.format(\"{:.4f}\"))",
-              "lineCount": 13,
+              "source": "# ==================== 加载标准回测数据 ====================\nif not all(name in globals() for name in [\"report_normal_df\", \"positions\", \"analysis_df\"]):\n    report_normal_df, positions, analysis_df = load_backtest_data(\n        recorder,\n        analysis_freq=\"1day\",\n    )\nelse:\n    print(\"复用回测单元保留的报告、持仓和风险分析。\")\ndata_info = get_backtest_data_info(report_normal_df, positions, analysis_df)\n\nprint(\"\\n【回测报告信息】\")\ndisplay(data_info[\"report_info\"])\nprint(\"\\n【回测报告预览（前5行）】\")\ndisplay(report_normal_df.head(5))\nprint(\"\\n【回测报告统计摘要】\")\ndisplay(report_normal_df.describe().style.format(\"{:.4f}\"))",
+              "lineCount": 16,
               "collapsed": false,
               "omitted": false,
               "exercise": false,

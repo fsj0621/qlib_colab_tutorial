@@ -89,14 +89,16 @@ class FakePortAnaRecord:
             index=dates,
         )
         analysis = pd.DataFrame({"risk": [0.1]}, index=["annualized_return"])
+        artifacts = {
+            "report_normal_1day.pkl": report,
+            "positions_normal_1day.pkl": {},
+            "port_analysis_1day.pkl": analysis,
+        }
         self.recorder.save_objects(
             artifact_path="portfolio_analysis",
-            **{
-                "report_normal_1day.pkl": report,
-                "positions_normal_1day.pkl": {},
-                "port_analysis_1day.pkl": analysis,
-            },
+            **artifacts,
         )
+        return artifacts
 
 
 def main():
@@ -134,6 +136,10 @@ def main():
         "2019-12-31"
     )
     assert len(port_analysis_config["backtest"]["exchange_kwargs"]["codes"]) == 80
+    assert "pred_df" in environment
+    assert "report_normal_df" in environment
+    assert "positions" in environment
+    assert "analysis_df" in environment
     for variable_name in ("model", "dataset", "handler", "task"):
         assert variable_name not in environment
     for artifact in (
@@ -150,6 +156,7 @@ def main():
         "RESTORE_ANALYSIS_CHECKPOINT",
         "R.save_objects(trained_model=model)",
         "SignalRecord(",
+        "del pred_df",
     ):
         assert forbidden not in notebook_text
 

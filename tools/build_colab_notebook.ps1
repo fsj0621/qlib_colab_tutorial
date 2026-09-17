@@ -653,7 +653,6 @@ with R.start(experiment_name="backtest_analysis"):
     print(f"预测已保存：{len(pred_df):,} 行，{len(backtest_codes)} 只股票。", flush=True)
 
     print("[3/4] 释放模型与 Alpha158，准备标准组合回测……", flush=True)
-    del pred_df
     for variable_name in ["model", "dataset", "handler", "task"]:
         globals().pop(variable_name, None)
     gc.collect()
@@ -661,7 +660,14 @@ with R.start(experiment_name="backtest_analysis"):
 
     print("[4/4] PortAnaRecord 执行 2019 年 TopK 回测……", flush=True)
     par = PortAnaRecord(recorder, port_analysis_config, "day")
-    par.generate()
+    backtest_artifacts = par.generate()
+
+    # PortAnaRecord 已返回这些小型分析对象，直接保留给第 7 节使用。
+    # 这样后续单元不必再次通过 MLflow 临时文件系统反序列化。
+    report_normal_df = backtest_artifacts["report_normal_1day.pkl"]
+    positions = backtest_artifacts["positions_normal_1day.pkl"]
+    analysis_df = backtest_artifacts["port_analysis_1day.pkl"]
+    del backtest_artifacts
     del par
     gc.collect()
     show_process_memory("组合回测完成")
@@ -672,17 +678,21 @@ print(f"标准回测完成，Recorder ID: {ba_rid}")
 $standardAnalysisRecorderCell = @'
 from qlib.contrib.report import analysis_model, analysis_position
 
-# 从当前回测实验读取预测、组合报告、持仓和风险分析。
+# 获取当前回测实验；预测和回测结果已由上一节保留在内存中。
 recorder = R.get_recorder(
     recorder_id=ba_rid,
     experiment_name="backtest_analysis",
 )
 print(recorder)
+print("分析数据已就绪，请继续顺序运行下面的单元格。")
 '@
 
 $standardPredictionOverviewCell = @'
 # ==================== 加载预测结果 ====================
-pred_df = recorder.load_object("pred.pkl")
+if "pred_df" not in globals():
+    pred_df = recorder.load_object("pred.pkl")
+else:
+    print("复用回测单元保留的预测数据。")
 pred_dates = pred_df.index.get_level_values("datetime")
 pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
 
@@ -708,10 +718,13 @@ display(pred_df.head(5))
 
 $standardBacktestDataCell = @'
 # ==================== 加载标准回测数据 ====================
-report_normal_df, positions, analysis_df = load_backtest_data(
-    recorder,
-    analysis_freq="1day",
-)
+if not all(name in globals() for name in ["report_normal_df", "positions", "analysis_df"]):
+    report_normal_df, positions, analysis_df = load_backtest_data(
+        recorder,
+        analysis_freq="1day",
+    )
+else:
+    print("复用回测单元保留的报告、持仓和风险分析。")
 data_info = get_backtest_data_info(report_normal_df, positions, analysis_df)
 
 print("\n【回测报告信息】")
