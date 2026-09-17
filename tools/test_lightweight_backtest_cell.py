@@ -76,6 +76,8 @@ class FakePortAnaRecord:
         self.config = config
 
     def generate(self):
+        assert "pred.pkl" in self.recorder.objects
+        assert "label.pkl" in self.recorder.objects
         codes = self.config["backtest"]["exchange_kwargs"]["codes"]
         assert isinstance(codes, list) and len(codes) == 80
         dates = pd.bdate_range("2019-01-02", "2019-01-31")
@@ -144,6 +146,7 @@ def main():
         assert variable_name not in environment
     for artifact in (
         "pred.pkl",
+        "label.pkl",
         "portfolio_analysis/report_normal_1day.pkl",
         "portfolio_analysis/positions_normal_1day.pkl",
         "portfolio_analysis/port_analysis_1day.pkl",
