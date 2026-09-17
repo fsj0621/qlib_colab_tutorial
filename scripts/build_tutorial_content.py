@@ -122,12 +122,22 @@ def markdown_to_html(source: str) -> str:
     return "\n".join(output)
 
 
-def output_text(outputs: list[dict]) -> list[dict]:
+def output_blocks(outputs: list[dict]) -> list[dict]:
     rendered: list[dict] = []
-    for output in outputs:
+    for output_index, output in enumerate(outputs):
         if output.get("output_type") == "error":
             continue
         data = output.get("data", {})
+        figure = data.get("application/vnd.plotly.v1+json")
+        if isinstance(figure, dict) and isinstance(figure.get("data"), list):
+            rendered.append(
+                {
+                    "type": "plotly",
+                    "index": output_index,
+                    "figure": figure,
+                }
+            )
+            continue
         value = data.get("text/plain")
         if value is None:
             continue
@@ -136,7 +146,14 @@ def output_text(outputs: list[dict]) -> list[dict]:
         if not text:
             continue
         clipped = len(text) > 2200
-        rendered.append({"text": text[:2200], "truncated": clipped})
+        rendered.append(
+            {
+                "type": "text",
+                "index": output_index,
+                "text": text[:2200],
+                "truncated": clipped,
+            }
+        )
     return rendered
 
 
@@ -162,7 +179,7 @@ def convert_cell(cell: dict, index: int) -> dict | None:
         "collapsed": len(lines) > 18 or len(source) > 1600,
         "omitted": very_long,
         "exercise": exercise,
-        "outputs": output_text(cell.get("outputs", [])),
+        "outputs": output_blocks(cell.get("outputs", [])),
     }
 
 
@@ -227,7 +244,7 @@ def build(notebook_path: Path, revision: str) -> dict:
         end = starts[position + 1][0] if position + 1 < len(starts) else len(cells)
         modules.append(build_module(cells, start, end, number, title))
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "source": notebook_path.name,
         "revision": revision,
         "cellCount": len(cells),

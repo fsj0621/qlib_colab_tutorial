@@ -4,6 +4,7 @@
   const scrim = document.querySelector("[data-sidebar-scrim]");
   const nav = document.querySelector("[data-course-nav]");
   const content = document.querySelector("[data-course-content]");
+  const plotlyFigures = new Map();
 
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
@@ -31,11 +32,24 @@
   const metrics = (items = []) => items.length ? `<div class="metric-grid">${items.map((item) => `
     <article><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.description)}</span></article>`).join("")}</div>` : "";
 
-  const notebookOutput = (outputs = []) => outputs.map((output) => `
-    <div class="notebook-output">
-      <div class="cell-label">输出${output.truncated ? "（已截取）" : ""}</div>
-      <pre>${escapeHtml(output.text)}</pre>
-    </div>`).join("");
+  const notebookOutput = (outputs = [], cellNumber) => outputs.map((output) => {
+    if (output.type === "plotly") {
+      const key = `cell-${cellNumber}-output-${output.index}`;
+      plotlyFigures.set(key, output.figure);
+      return `
+        <div class="notebook-output notebook-chart-output">
+          <div class="cell-label"><span>运行示例图</span><span>实际结果以 Colab 运行为准</span></div>
+          <div class="notebook-plot" data-plot-key="${escapeHtml(key)}" role="img" aria-label="Cell ${escapeHtml(cellNumber)} 的运行示例图">
+            <span class="chart-loading">展开后加载图表…</span>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="notebook-output">
+        <div class="cell-label">输出${output.truncated ? "（已截取）" : ""}</div>
+        <pre>${escapeHtml(output.text)}</pre>
+      </div>`;
+  }).join("");
 
   const notebookCell = (cell) => {
     if (cell.type === "markdown") return `<div class="notebook-prose">${cell.html}</div>`;
@@ -50,8 +64,46 @@
         <div class="cell-label"><span>${cell.exercise ? "练习" : "代码"} · Cell ${escapeHtml(cell.cell)}</span>${cell.omitted ? "<span>长辅助函数</span>" : ""}</div>
         ${codeBody}
         ${cell.omitted ? '<p class="cell-omitted">这里只展示前 18 行，完整辅助函数请在 Colab 中查看。</p>' : ""}
-        ${notebookOutput(cell.outputs)}
+        ${notebookOutput(cell.outputs, cell.cell)}
       </article>`;
+  };
+
+  const renderPlotlyIn = (root) => {
+    root.querySelectorAll(".notebook-plot:not([data-rendered])").forEach((element) => {
+      const figure = plotlyFigures.get(element.dataset.plotKey);
+      if (!figure || !window.Plotly) {
+        element.classList.add("has-error");
+        element.textContent = "图表组件加载失败，请在 Colab 中运行本单元格查看。";
+        return;
+      }
+      element.dataset.rendered = "true";
+      const { width: _sourceWidth, ...sourceLayout } = figure.layout || {};
+      const layout = {
+        ...sourceLayout,
+        autosize: true,
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(0,0,0,0)",
+      };
+      const config = {
+        ...(figure.config || {}),
+        responsive: true,
+        displaylogo: false,
+      };
+      element.replaceChildren();
+      window.Plotly.newPlot(element, figure.data, layout, config).catch(() => {
+        element.classList.add("has-error");
+        element.textContent = "图表渲染失败，请在 Colab 中运行本单元格查看。";
+      });
+    });
+  };
+
+  const initializePlotlyOutputs = () => {
+    document.querySelectorAll(".notebook-step").forEach((step) => {
+      step.addEventListener("toggle", () => {
+        if (step.open) renderPlotlyIn(step);
+      });
+      if (step.open) renderPlotlyIn(step);
+    });
   };
 
   const notebookWalkthrough = (notebookModule, revision) => {
@@ -173,6 +225,7 @@
       link.href = trainingDownloadUrl;
       link.setAttribute("download", course.trainingNotebookPath.split("/").pop());
     });
+    initializePlotlyOutputs();
     initializeNavigation();
     if (window.location.hash) {
       requestAnimationFrame(() => document.getElementById(window.location.hash.slice(1))?.scrollIntoView());

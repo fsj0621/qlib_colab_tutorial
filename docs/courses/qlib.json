@@ -4,7 +4,7 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.1.1",
+  "version": "v1.1.2",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
@@ -207,20 +207,20 @@
       "shortTitle": "TopK 策略回测",
       "duration": "40 min",
       "notebookSection": "第 6 节",
-      "summary": "把横截面预测分数转换成 TopK 持仓，用轻量教学回测计算收益、换手和成本。",
+      "summary": "把横截面预测分数转换成 TopK 持仓，用 Qlib 标准回测计算收益、换手和成本。",
       "objectives": [
         "理解预测信号、选股策略和执行器的连接方式",
         "解释 TopK 与换仓数量参数",
-        "区分免费 Colab 教学近似与完整成交仿真的边界"
+        "理解缩短回测区间如何降低免费 Colab 的资源压力"
       ],
       "primary": {
         "title": "回测链路",
         "style": "ordered",
         "items": [
-          "模型生成一次横截面预测，随后释放 Alpha158。",
-          "每日保留高分持仓、淘汰 5 只并补足 Top 50。",
-          "按等权未来收益计算组合收益、换手率和交易费。",
-          "保存兼容产物，继续使用 Qlib 的绩效与风险图表。"
+          "SignalRecord 生成一次横截面预测，随后释放 Alpha158。",
+          "TopkDropoutStrategy 每日保留高分持仓、淘汰 5 只并补足 Top 50。",
+          "SimulatorExecutor 按交易规则、涨跌停和成本模拟成交。",
+          "PortAnaRecord 保存组合报告，继续用于绩效与风险图表。"
         ]
       },
       "secondary": {

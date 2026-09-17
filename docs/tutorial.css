@@ -175,6 +175,11 @@ code { padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; back
 .notebook-output { border-top: 1px solid var(--line); }
 .notebook-output .cell-label { border-bottom: 0; }
 .notebook-output pre { max-height: 240px; margin: 0; padding: 13px 16px; overflow: auto; color: var(--muted); font: 12px/1.55 "Cascadia Code", Consolas, monospace; white-space: pre-wrap; }
+.notebook-chart-output { background: #fff; }
+.notebook-chart-output .cell-label { border-bottom: 1px solid #e5e7eb; background: #f8fafc; color: #64748b; }
+.notebook-plot { width: 100%; min-height: 450px; padding: 8px; overflow: hidden; color: #475569; }
+.notebook-plot .chart-loading { min-height: 434px; display: grid; place-items: center; font-size: 13px; }
+.notebook-plot.has-error { min-height: 120px; display: grid; place-items: center; padding: 24px; text-align: center; }
 .teaching-guide { margin-top: 18px; border: 1px dashed var(--line); border-radius: 16px; }
 .teaching-guide > summary { padding: 15px 18px; color: var(--muted); font-size: 14px; font-weight: 800; }
 .teaching-guide > summary::before { content: "+"; display: inline-block; width: 22px; color: var(--cyan); }
@@ -195,6 +200,11 @@ code { padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; back
   .course-content { width: min(100% - 44px, 900px); }
   .nav-time { display: none; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .notebook-plot { min-height: 340px; padding: 2px; }
+  .notebook-plot .chart-loading { min-height: 336px; }
 }
 
 @media (max-width: 780px) {

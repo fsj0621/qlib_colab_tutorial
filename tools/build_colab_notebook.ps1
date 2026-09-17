@@ -36,6 +36,11 @@ function New-CodeCell([string]$Text) {
 
 $source = Get-Content -LiteralPath $SourceNotebook -Raw -Encoding UTF8 | ConvertFrom-Json
 $support = Get-Content -LiteralPath $SupportModule -Raw -Encoding UTF8
+$support = [regex]::Replace(
+    $support,
+    '(?m)^(\s*)([A-Za-z_][A-Za-z0-9_]*(?:\[[^\r\n]+\])?)\.show\(\)\s*$',
+    '$1show_plotly($2)'
+)
 
 $intro = @'
 # Qlib 量化投资工作流教程
@@ -145,8 +150,20 @@ if not calendar_file.exists():
         "在 Colab 中请重新运行本单元格；本地运行请按 README 准备数据。"
     )
 
+# Colab 对 Plotly 的自动渲染识别并不总是稳定。统一指定专用 renderer，
+# 并让后续所有图表通过同一个函数显式显示。
+import plotly.io as pio
+
+PLOTLY_RENDERER = "colab" if IN_COLAB else "notebook_connected"
+pio.renderers.default = PLOTLY_RENDERER
+
+def show_plotly(figure):
+    """在 Colab/Jupyter 中显式渲染 Plotly Figure。"""
+    figure.show(renderer=PLOTLY_RENDERER, config={"responsive": True})
+
 print(f"Python: {sys.version.split()[0]}")
 print(f"Qlib 数据目录: {QLIB_DATA_DIR}")
+print(f"Plotly 渲染器: {PLOTLY_RENDERER}")
 print("环境准备完成 ✓")
 '@
 
@@ -830,6 +847,34 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
             $text = $standardLabelCell
         }
 
+        # Qlib 的 show_notebook 自动显示在部分 Colab 会话中会失效。
+        # 先拿到 Figure，再通过上面的 Colab renderer 显式 show。
+        $text = $text.Replace(
+            'analysis_position.report_graph(report_normal_df)',
+            'report_fig_list = analysis_position.report_graph(report_normal_df, show_notebook=False)' + "`n" +
+            'for figure in report_fig_list:' + "`n" +
+            '    show_plotly(figure)'
+        )
+        $text = $text.Replace(
+            'analysis_position.risk_analysis_graph(analysis_df, report_normal_df)',
+            'risk_overview_figs = analysis_position.risk_analysis_graph(analysis_df, report_normal_df, show_notebook=False)' + "`n" +
+            'for figure in risk_overview_figs:' + "`n" +
+            '    show_plotly(figure)'
+        )
+        $text = $text.Replace(
+            'analysis_model.model_performance_graph(pred_label)',
+            'model_overview_figs = analysis_model.model_performance_graph(pred_label, show_notebook=False)' + "`n" +
+            'for figure in model_overview_figs:' + "`n" +
+            '    show_plotly(figure)'
+        )
+
+        # 原稿中各子图使用 fig.show()；统一走显式 renderer，避免空白输出。
+        $text = [regex]::Replace(
+            $text,
+            '(?m)^(\s*)([A-Za-z_][A-Za-z0-9_]*(?:\[[^\r\n]+\])?)\.show\(\)\s*$',
+            '$1show_plotly($2)'
+        )
+
         if ($text -match 'from Utils_backtest import \*') {
             $text = $text.Replace("import sys`nfrom pathlib import Path`n`n# 导入回测分析模块`nsys.path.insert(0, str(Path.cwd() / 'py'))`nfrom Utils_backtest import *`n", "# 回测分析辅助函数已在环境准备部分内嵌，无需额外文件。`n")
         }
@@ -854,7 +899,12 @@ def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, 
         }
 
         $cell.execution_count = $null
-        $cell.outputs = @()
+        # 主 Notebook 同时是讲解网页的数据源：只保留原稿中的 Plotly 图表输出。
+        # 两本学生 Notebook 会在拆分时继续清空全部输出，保证 Colab 从头运行。
+        $cell.outputs = @($cell.outputs | Where-Object {
+            $_.data -and
+            ($_.data.PSObject.Properties.Name -contains 'application/vnd.plotly.v1+json')
+        })
     }
 
     if ($cell.cell_type -eq 'markdown' -and $text -match '课后作业（2）：理解三种数据模式') {
