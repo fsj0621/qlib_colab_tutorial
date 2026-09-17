@@ -399,7 +399,7 @@ with R.start(experiment_name="backtest_analysis"):
 
     # port_analysis_config 使用 <PRED> 占位符；PortAnaRecord 会从当前
     # recorder 读取 pred.pkl，不会再次调用模型预测。
-    print("[3/3] 开始组合回测（不会重复预测）……", flush=True)
+    print(f"[3/3] 开始组合回测（股票范围：{market}，不会加载全市场）……", flush=True)
     par = PortAnaRecord(recorder, port_analysis_config, "day")
     par.generate()
     del par
@@ -469,6 +469,7 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
             $text = $text.Replace('"end_time": "2020-08-01"', '"end_time": TEACHING_SEGMENTS["test"][1]')
             $text = $text.Replace('"model": model,                              # 使用的预测模型', '"signal": "<PRED>",                         # 复用 SignalRecord 已保存的预测')
             $text = $text.Replace("            `"dataset`": dataset,                          # 数据集`n", '')
+            $text = $text.Replace('"freq": "day",                               # 交易频率：日频', "`"codes`": market,                              # 只加载沪深300，避免默认读取全市场`n            `"freq`": `"day`",                               # 交易频率：日频")
         }
 
         # task 中保留数据集配置用于实验记录，但训练时复用第 4 节已创建的 dataset。
