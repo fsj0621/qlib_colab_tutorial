@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "source": "Qlib量化投资工作流教程_Colab学生版.ipynb",
-  "revision": "v1.1.6",
+  "revision": "v1.1.7",
   "cellCount": 172,
   "modules": [
     {
@@ -57,7 +57,7 @@
             {
               "type": "code",
               "cell": 5,
-              "source": "import qlib\nimport pandas as pd\nfrom qlib.constant import REG_CN                                  # 导入中国区域常量\nfrom qlib.utils import init_instance_by_config                    # 导入工具函数：配置初始化实例\nfrom qlib.workflow import R                                       # 导入 workflow 记录对象 R\nfrom qlib.workflow.record_temp import SignalRecord, PortAnaRecord\nfrom qlib.backtest.high_performance_ds import PandasQuote # 导入记录模板：信号记录和组合分析记录\nfrom qlib.utils import flatten_dict                               # 导入字典扁平化工具函数，将嵌套字典转换为单层字典，便于记录参数",
+              "source": "import qlib\nimport pandas as pd\nfrom qlib.constant import REG_CN                                  # 导入中国区域常量\nfrom qlib.utils import init_instance_by_config                    # 导入工具函数：配置初始化实例\nfrom qlib.workflow import R                                       # 导入 workflow 记录对象 R\nfrom qlib.workflow.record_temp import PortAnaRecord\nfrom qlib.backtest.high_performance_ds import PandasQuote # 导入记录模板：信号记录和组合分析记录\nfrom qlib.utils import flatten_dict                               # 导入字典扁平化工具函数，将嵌套字典转换为单层字典，便于记录参数",
               "lineCount": 8,
               "collapsed": false,
               "omitted": false,
@@ -757,17 +757,17 @@
           "exercise": false
         },
         {
-          "title": "6.2 Qlib 标准回测流程",
+          "title": "6.2 Qlib 低内存标准回测流程",
           "cells": [
             {
               "type": "markdown",
-              "html": "<p>训练回测篇从全新运行时开始，因此这里恢复 Qlib 原生工作流：</p>\n<ol>\n<li><code>SignalRecord</code> 使用训练好的模型生成测试集预测；</li>\n<li><code>PortAnaRecord</code> 读取预测信号并运行 <code>TopkDropoutStrategy</code>；</li>\n<li><code>SimulatorExecutor</code> 按收盘价、涨跌停和交易成本模拟逐日成交；</li>\n<li>结果保存在当前 Qlib 实验记录中，紧接着由第 7 节读取分析。</li>\n</ol>\n<p>为适配免费 Colab，训练、验证和测试区间继续使用课堂轻量范围，组合回测只覆盖 2019 年，并限制为预测结果中实际出现的股票。</p>"
+              "html": "<p>训练回测篇从全新运行时开始，并保留 Qlib 的标准组合回测组件：</p>\n<ol>\n<li>模型只预测一次，将测试集得分保存为当前实验的 <code>pred.pkl</code>；</li>\n<li><code>PortAnaRecord</code> 读取预测信号并运行 <code>TopkDropoutStrategy</code>；</li>\n<li><code>SimulatorExecutor</code> 按收盘价、涨跌停和交易成本模拟逐日成交；</li>\n<li>结果保存在当前 Qlib 实验记录中，紧接着由第 7 节读取分析。</li>\n</ol>\n<p>这里不调用 <code>SignalRecord.generate()</code>：Qlib 0.9.7 会在预测后强制读取 raw 标签，而低内存处理器已设置 <code>drop_raw=True</code>。本节直接保存同样的预测产物，标签从已有的 infer 数据中单独读取，避免恢复整份 raw 数据。训练、验证和测试区间继续使用课堂轻量范围，组合回测只覆盖 2019 年，并限制为预测结果中实际出现的股票。</p>"
             },
             {
               "type": "code",
               "cell": 76,
-              "source": "# ==================== Qlib 标准信号与组合回测 ====================\nimport gc\n\nprint(\"[1/3] 使用 SignalRecord 生成测试集预测……\", flush=True)\nshow_process_memory(\"信号生成前\")\n\nwith R.start(experiment_name=\"backtest_analysis\"):\n    recorder = R.get_recorder()\n    ba_rid = recorder.id\n\n    sr = SignalRecord(model, dataset, recorder)\n    sr.generate()\n\n    # 第 7.4 节只需要一列标签，提前保留后即可释放完整 Alpha158。\n    label_df = dataset.prepare(\"test\", col_set=\"label\")\n    label_df.columns = [\"label\"]\n    label_dates = label_df.index.get_level_values(\"datetime\")\n    label_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\n\n    pred_df = recorder.load_object(\"pred.pkl\")\n    pred_dates = pred_df.index.get_level_values(\"datetime\")\n    pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\n    backtest_codes = sorted(pred_df.index.get_level_values(\"instrument\").unique())\n    port_analysis_config[\"backtest\"][\"exchange_kwargs\"][\"codes\"] = backtest_codes\n\n    print(\"[2/3] 释放模型与 Alpha158，准备标准组合回测……\", flush=True)\n    del sr\n    for variable_name in [\"model\", \"dataset\", \"handler\", \"task\"]:\n        globals().pop(variable_name, None)\n    gc.collect()\n    show_process_memory(\"组合回测前\")\n\n    print(\"[3/3] PortAnaRecord 执行 2019 年 TopK 回测……\", flush=True)\n    par = PortAnaRecord(recorder, port_analysis_config, \"day\")\n    par.generate()\n    del par\n    gc.collect()\n    show_process_memory(\"组合回测完成\")\n\nprint(f\"标准回测完成，Recorder ID: {ba_rid}\")",
-              "lineCount": 40,
+              "source": "# ==================== Qlib 低内存信号与标准组合回测 ====================\nimport gc\n\n# SignalRecord.generate() 会额外读取 raw 标签，与 drop_raw=True 冲突。\n# 这里执行它的核心步骤：预测一次，并把 pred.pkl 保存到当前 recorder。\nprint(\"[1/4] 从 infer 数据保留测试集标签……\", flush=True)\nlabel_df = dataset.prepare(\"test\", col_set=\"label\", data_key=\"infer\")\nlabel_df.columns = [\"label\"]\nlabel_dates = label_df.index.get_level_values(\"datetime\")\nlabel_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\nprint(f\"已保留 {len(label_df):,} 行标签。\", flush=True)\n\nprint(\"[2/4] 模型生成测试集预测……\", flush=True)\nshow_process_memory(\"预测前\")\npred_df = model.predict(dataset)\nif isinstance(pred_df, pd.Series):\n    pred_df = pred_df.to_frame(\"score\")\npred_dates = pred_df.index.get_level_values(\"datetime\")\npred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()\nbacktest_codes = sorted(pred_df.index.get_level_values(\"instrument\").unique())\nport_analysis_config[\"backtest\"][\"exchange_kwargs\"][\"codes\"] = backtest_codes\n\nwith R.start(experiment_name=\"backtest_analysis\"):\n    recorder = R.get_recorder()\n    ba_rid = recorder.id\n    recorder.save_objects(**{\"pred.pkl\": pred_df})\n    print(f\"预测已保存：{len(pred_df):,} 行，{len(backtest_codes)} 只股票。\", flush=True)\n\n    print(\"[3/4] 释放模型与 Alpha158，准备标准组合回测……\", flush=True)\n    del pred_df\n    for variable_name in [\"model\", \"dataset\", \"handler\", \"task\"]:\n        globals().pop(variable_name, None)\n    gc.collect()\n    show_process_memory(\"组合回测前\")\n\n    print(\"[4/4] PortAnaRecord 执行 2019 年 TopK 回测……\", flush=True)\n    par = PortAnaRecord(recorder, port_analysis_config, \"day\")\n    par.generate()\n    del par\n    gc.collect()\n    show_process_memory(\"组合回测完成\")\n\nprint(f\"标准回测完成，Recorder ID: {ba_rid}\")",
+              "lineCount": 43,
               "collapsed": true,
               "omitted": false,
               "exercise": false,
@@ -26272,7 +26272,7 @@
             {
               "type": "code",
               "cell": 143,
-              "source": "# SignalRecord 生成预测后已保留单列标签；完整 Alpha158 已在回测前释放。\nif \"label_df\" not in globals():\n    raise RuntimeError(\"请先顺序运行第 6.2 节的标准回测单元格。\")\n\nprint(f\"标签数据形状: {label_df.shape}\")",
+              "source": "# 预测前已从 infer 数据保留单列标签；完整 Alpha158 已在回测前释放。\nif \"label_df\" not in globals():\n    raise RuntimeError(\"请先顺序运行第 6.2 节的标准回测单元格。\")\n\nprint(f\"标签数据形状: {label_df.shape}\")",
               "lineCount": 5,
               "collapsed": false,
               "omitted": false,

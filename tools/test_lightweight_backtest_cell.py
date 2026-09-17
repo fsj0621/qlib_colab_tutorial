@@ -30,8 +30,9 @@ class FakeDataset:
     def __init__(self, predictions: pd.DataFrame):
         self.predictions = predictions
 
-    def prepare(self, segment, col_set=None):
+    def prepare(self, segment, col_set=None, data_key=None):
         assert segment == "test" and col_set == "label"
+        assert data_key == "infer"
         labels = self.predictions.rename(columns={"score": "LABEL0"}).copy()
         labels.iloc[:, 0] = np.linspace(-0.02, 0.02, len(labels), dtype=float)
         return labels
@@ -61,16 +62,6 @@ class FakeWorkflow:
 
     def get_recorder(self):
         return self.recorder
-
-
-class FakeSignalRecord:
-    def __init__(self, model, dataset, recorder):
-        self.model = model
-        self.dataset = dataset
-        self.recorder = recorder
-
-    def generate(self):
-        self.recorder.save_objects(**{"pred.pkl": self.model.predict(self.dataset)})
 
 
 class FakeModel:
@@ -115,7 +106,7 @@ def main():
         "".join(cell.get("source", []))
         for cell in notebook["cells"]
         if cell.get("cell_type") == "code"
-        and "Qlib 标准信号与组合回测" in "".join(cell.get("source", []))
+        and "Qlib 低内存信号与标准组合回测" in "".join(cell.get("source", []))
     )
 
     recorder = FakeRecorder()
@@ -127,7 +118,6 @@ def main():
         "pd": pd,
         "gc": gc,
         "R": FakeWorkflow(recorder),
-        "SignalRecord": FakeSignalRecord,
         "PortAnaRecord": FakePortAnaRecord,
         "model": FakeModel(),
         "dataset": dataset,
@@ -159,6 +149,7 @@ def main():
         "files.download",
         "RESTORE_ANALYSIS_CHECKPOINT",
         "R.save_objects(trained_model=model)",
+        "SignalRecord(",
     ):
         assert forbidden not in notebook_text
 

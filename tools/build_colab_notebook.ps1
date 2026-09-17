@@ -611,52 +611,55 @@ display(report_normal_df.describe().style.format("{:.4f}"))
 # 分成两个独立运行时后，训练回测篇可以恢复 Qlib 标准的
 # SignalRecord + PortAnaRecord 流程；仍保留缩短区间和单一 Alpha158。
 $standardBacktestExplanation = @'
-### 6.2 Qlib 标准回测流程
+### 6.2 Qlib 低内存标准回测流程
 
-训练回测篇从全新运行时开始，因此这里恢复 Qlib 原生工作流：
+训练回测篇从全新运行时开始，并保留 Qlib 的标准组合回测组件：
 
-1. `SignalRecord` 使用训练好的模型生成测试集预测；
+1. 模型只预测一次，将测试集得分保存为当前实验的 `pred.pkl`；
 2. `PortAnaRecord` 读取预测信号并运行 `TopkDropoutStrategy`；
 3. `SimulatorExecutor` 按收盘价、涨跌停和交易成本模拟逐日成交；
 4. 结果保存在当前 Qlib 实验记录中，紧接着由第 7 节读取分析。
 
-为适配免费 Colab，训练、验证和测试区间继续使用课堂轻量范围，组合回测只覆盖 2019 年，并限制为预测结果中实际出现的股票。
+这里不调用 `SignalRecord.generate()`：Qlib 0.9.7 会在预测后强制读取 raw 标签，而低内存处理器已设置 `drop_raw=True`。本节直接保存同样的预测产物，标签从已有的 infer 数据中单独读取，避免恢复整份 raw 数据。训练、验证和测试区间继续使用课堂轻量范围，组合回测只覆盖 2019 年，并限制为预测结果中实际出现的股票。
 '@
 
 $standardBacktestWorkflow = @'
-# ==================== Qlib 标准信号与组合回测 ====================
+# ==================== Qlib 低内存信号与标准组合回测 ====================
 import gc
 
-print("[1/3] 使用 SignalRecord 生成测试集预测……", flush=True)
-show_process_memory("信号生成前")
+# SignalRecord.generate() 会额外读取 raw 标签，与 drop_raw=True 冲突。
+# 这里执行它的核心步骤：预测一次，并把 pred.pkl 保存到当前 recorder。
+print("[1/4] 从 infer 数据保留测试集标签……", flush=True)
+label_df = dataset.prepare("test", col_set="label", data_key="infer")
+label_df.columns = ["label"]
+label_dates = label_df.index.get_level_values("datetime")
+label_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
+print(f"已保留 {len(label_df):,} 行标签。", flush=True)
+
+print("[2/4] 模型生成测试集预测……", flush=True)
+show_process_memory("预测前")
+pred_df = model.predict(dataset)
+if isinstance(pred_df, pd.Series):
+    pred_df = pred_df.to_frame("score")
+pred_dates = pred_df.index.get_level_values("datetime")
+pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
+backtest_codes = sorted(pred_df.index.get_level_values("instrument").unique())
+port_analysis_config["backtest"]["exchange_kwargs"]["codes"] = backtest_codes
 
 with R.start(experiment_name="backtest_analysis"):
     recorder = R.get_recorder()
     ba_rid = recorder.id
+    recorder.save_objects(**{"pred.pkl": pred_df})
+    print(f"预测已保存：{len(pred_df):,} 行，{len(backtest_codes)} 只股票。", flush=True)
 
-    sr = SignalRecord(model, dataset, recorder)
-    sr.generate()
-
-    # 第 7.4 节只需要一列标签，提前保留后即可释放完整 Alpha158。
-    label_df = dataset.prepare("test", col_set="label")
-    label_df.columns = ["label"]
-    label_dates = label_df.index.get_level_values("datetime")
-    label_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
-
-    pred_df = recorder.load_object("pred.pkl")
-    pred_dates = pred_df.index.get_level_values("datetime")
-    pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
-    backtest_codes = sorted(pred_df.index.get_level_values("instrument").unique())
-    port_analysis_config["backtest"]["exchange_kwargs"]["codes"] = backtest_codes
-
-    print("[2/3] 释放模型与 Alpha158，准备标准组合回测……", flush=True)
-    del sr
+    print("[3/4] 释放模型与 Alpha158，准备标准组合回测……", flush=True)
+    del pred_df
     for variable_name in ["model", "dataset", "handler", "task"]:
         globals().pop(variable_name, None)
     gc.collect()
     show_process_memory("组合回测前")
 
-    print("[3/3] PortAnaRecord 执行 2019 年 TopK 回测……", flush=True)
+    print("[4/4] PortAnaRecord 执行 2019 年 TopK 回测……", flush=True)
     par = PortAnaRecord(recorder, port_analysis_config, "day")
     par.generate()
     del par
@@ -720,7 +723,7 @@ display(report_normal_df.describe().style.format("{:.4f}"))
 '@
 
 $standardLabelCell = @'
-# SignalRecord 生成预测后已保留单列标签；完整 Alpha158 已在回测前释放。
+# 预测前已从 infer 数据保留单列标签；完整 Alpha158 已在回测前释放。
 if "label_df" not in globals():
     raise RuntimeError("请先顺序运行第 6.2 节的标准回测单元格。")
 
@@ -908,7 +911,7 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         $text = $text.Replace('"num_threads": 20,', '"num_threads": 2,')
         $text = $text.Replace('qlib.init(provider_uri=provider_uri, region=REG_CN)', $sqliteInit)
         if ($text -match 'from qlib\.workflow\.record_temp import SignalRecord, PortAnaRecord') {
-            $text = $text.Replace('from qlib.workflow.record_temp import SignalRecord, PortAnaRecord', "from qlib.workflow.record_temp import SignalRecord, PortAnaRecord`nfrom qlib.backtest.high_performance_ds import PandasQuote")
+            $text = $text.Replace('from qlib.workflow.record_temp import SignalRecord, PortAnaRecord', "from qlib.workflow.record_temp import PortAnaRecord`nfrom qlib.backtest.high_performance_ds import PandasQuote")
         }
 
         if ($text -match '# 获取实际的 feaure 数据') { $text = $featureSample }
