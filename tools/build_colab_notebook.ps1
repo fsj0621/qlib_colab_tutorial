@@ -749,6 +749,150 @@ if "label_df" not in globals():
 print(f"标签数据形状: {label_df.shape}")
 '@
 
+$homework3Markdown = @'
+##### **课后作业（3）：计算累计超额收益率**
+
+本题已经给出输入检查、无成本日超额收益和结果表格。请只补全代码中标记的 **3 个核心计算**：
+
+1. 含成本日超额收益；
+2. 不含成本累计超额收益；
+3. 含成本累计超额收益。
+
+累计收益使用 `cumsum()`，完成后运行下一单元格中的检查代码。
+'@
+
+$homework3Code = @'
+def analyze_excess_return(report_normal_df: pd.DataFrame) -> pd.DataFrame:
+    """计算超额收益统计；学生只需补全 3 个核心公式。"""
+    required_columns = {"return", "bench", "cost"}
+    missing_columns = required_columns.difference(report_normal_df.columns)
+    if missing_columns:
+        raise KeyError(f"回测报告缺少列: {sorted(missing_columns)}")
+
+    # 已给出：不含成本的日超额收益 = 策略收益 - 基准收益
+    excess_return_without_cost = report_normal_df["return"] - report_normal_df["bench"]
+
+    # TODO 1：含成本的日超额收益 = 策略收益 - 基准收益 - 交易成本
+    excess_return_with_cost = ...
+
+    # TODO 2：用 cumsum() 计算不含成本的累计超额收益序列
+    cumulative_excess_without_cost = ...
+
+    # TODO 3：用 cumsum() 计算含成本的累计超额收益序列
+    cumulative_excess_with_cost = ...
+
+    if any(
+        value is Ellipsis
+        for value in (
+            excess_return_with_cost,
+            cumulative_excess_without_cost,
+            cumulative_excess_with_cost,
+        )
+    ):
+        raise NotImplementedError("请补全课后作业（3）的 3 个 TODO。")
+
+    # 结果表结构已给出，不需要修改。
+    result = pd.DataFrame(
+        {
+            "数值": [
+                cumulative_excess_without_cost.iloc[-1],
+                cumulative_excess_with_cost.iloc[-1],
+                excess_return_without_cost.mean(),
+                excess_return_with_cost.mean(),
+                excess_return_without_cost.std(),
+                excess_return_with_cost.std(),
+            ]
+        },
+        index=[
+            "最终累计超额收益（不含成本）",
+            "最终累计超额收益（含成本）",
+            "日均超额收益（不含成本）",
+            "日均超额收益（含成本）",
+            "日超额收益标准差（不含成本）",
+            "日超额收益标准差（含成本）",
+        ],
+    )
+    result.index.name = "指标"
+    return result
+
+
+# 完成 3 个 TODO 后取消下面代码的注释进行检查：
+# excess_return_stats = analyze_excess_return(report_normal_df)
+# display(excess_return_stats.style.format("{:.6f}"))
+'@
+
+$homework4Markdown = @'
+##### **课后作业（4）：计算超额收益最大回撤（含成本）**
+
+本题已经给出含成本超额收益、累计收益、回撤起止日期和结果表格。请只补全 **3 个核心计算**：
+
+1. 历史累计收益峰值；
+2. 每日回撤序列；
+3. 最大回撤。
+
+提示：历史峰值使用 `cummax()`；回撤等于“当前累计收益 − 历史峰值”，因此最大回撤通常是负数。
+'@
+
+$homework4Code = @'
+def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+    """计算含成本超额收益最大回撤；学生只需补全 3 个核心公式。"""
+    required_columns = {"return", "bench", "cost"}
+    missing_columns = required_columns.difference(report_normal_df.columns)
+    if missing_columns:
+        raise KeyError(f"回测报告缺少列: {sorted(missing_columns)}")
+
+    # 已给出：先计算含成本日超额收益及其累计曲线。
+    excess_return_with_cost = (
+        report_normal_df["return"]
+        - report_normal_df["bench"]
+        - report_normal_df["cost"]
+    )
+    cumulative_excess_with_cost = excess_return_with_cost.cumsum()
+
+    # TODO 1：用 cummax() 计算截至每一天的历史累计收益峰值
+    running_peak = ...
+
+    # TODO 2：每日回撤 = 当前累计收益 - 历史累计收益峰值
+    drawdown = ...
+
+    # TODO 3：最大回撤是回撤序列中的最小值
+    max_drawdown = ...
+
+    if any(value is Ellipsis for value in (running_peak, drawdown, max_drawdown)):
+        raise NotImplementedError("请补全课后作业（4）的 3 个 TODO。")
+
+    # 起止日期和结果表结构已给出，不需要修改。
+    drawdown_end = drawdown.idxmin()
+    drawdown_start = cumulative_excess_with_cost.loc[:drawdown_end].idxmax()
+    duration_days = (
+        (drawdown_end - drawdown_start).days
+        if hasattr(drawdown_end - drawdown_start, "days")
+        else None
+    )
+
+    stats = pd.DataFrame(
+        {
+            "数值": [
+                max_drawdown,
+                drawdown_start,
+                drawdown_end,
+                duration_days,
+            ]
+        },
+        index=["最大回撤", "回撤开始日期", "回撤结束日期", "持续天数"],
+    )
+    stats.index.name = "指标"
+    return {
+        "with_cost": stats,
+        "drawdown_series": drawdown.to_frame("drawdown"),
+    }
+
+
+# 完成 3 个 TODO 后取消下面代码的注释进行检查：
+# excess_dd_result = analyze_excess_return_drawdown(report_normal_df)
+# display(excess_dd_result["with_cost"])
+'@
+
 $sqliteInit = @'
 mlflow_db = (Path("/content") if IN_COLAB else Path.cwd()) / "qlib_mlflow.db"
 exp_manager = {
@@ -880,22 +1024,11 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         }
 
         if ($text -match 'ex_return_wo_cost\s*=\s*\r?\n') {
-            $text = @'
-def analyze_excess_return(report_normal_df: pd.DataFrame) -> pd.DataFrame:
-    """课后作业：计算累计、均值与波动率等超额收益统计。"""
-    # TODO: 请补充代码。返回一个以“指标”为索引、包含“数值”列的 DataFrame。
-    return pd.DataFrame(columns=["数值"]).rename_axis("指标")
-'@
+            $text = $homework3Code
         }
 
         if ($text -match 'max_drawdown\s*=\s*\r?\n') {
-            $text = @'
-def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-    """课后作业：计算超额收益最大回撤及其起止日期。"""
-    # TODO: 请补充代码。当前占位返回值保证“全部运行”不会出现语法错误。
-    empty = pd.DataFrame(columns=["数值"]).rename_axis("指标")
-    return {"without_cost": empty}
-'@
+            $text = $homework4Code
         }
 
         $cell.execution_count = $null
@@ -909,6 +1042,12 @@ def analyze_excess_return_drawdown(report_normal_df: pd.DataFrame) -> Dict[str, 
 
     if ($cell.cell_type -eq 'markdown' -and $text -match '课后作业（2）：理解三种数据模式') {
         $text = $dataModeExercise
+    }
+    if ($cell.cell_type -eq 'markdown' -and $text -match '课后作业（3）') {
+        $text = $homework3Markdown
+    }
+    if ($cell.cell_type -eq 'markdown' -and $text -match '课后作业（4）') {
+        $text = $homework4Markdown
     }
 
     $cell.source = @(ConvertTo-SourceLines $text)
