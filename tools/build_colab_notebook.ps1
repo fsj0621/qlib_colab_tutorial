@@ -370,7 +370,6 @@ with R.start(experiment_name="train_model"):
     gc.collect()
     show_process_memory("模型训练后")
 
-    R.save_objects(trained_model=model)
     rid = R.get_recorder().id
 
 print(f"模型训练完成，Recorder ID: {rid}")
@@ -614,6 +613,125 @@ print("\n【回测报告统计摘要】")
 display(report_normal_df.describe().style.format("{:.4f}"))
 '@
 
+# 分成两个独立运行时后，训练回测篇可以恢复 Qlib 标准的
+# SignalRecord + PortAnaRecord 流程；仍保留缩短区间和单一 Alpha158。
+$standardBacktestExplanation = @'
+### 6.2 Qlib 标准回测流程
+
+训练回测篇从全新运行时开始，因此这里恢复 Qlib 原生工作流：
+
+1. `SignalRecord` 使用训练好的模型生成测试集预测；
+2. `PortAnaRecord` 读取预测信号并运行 `TopkDropoutStrategy`；
+3. `SimulatorExecutor` 按收盘价、涨跌停和交易成本模拟逐日成交；
+4. 结果保存在当前 Qlib 实验记录中，紧接着由第 7 节读取分析。
+
+为适配免费 Colab，训练、验证和测试区间继续使用课堂轻量范围，组合回测只覆盖 2019 年，并限制为预测结果中实际出现的股票。
+'@
+
+$standardBacktestWorkflow = @'
+# ==================== Qlib 标准信号与组合回测 ====================
+import gc
+
+print("[1/3] 使用 SignalRecord 生成测试集预测……", flush=True)
+show_process_memory("信号生成前")
+
+with R.start(experiment_name="backtest_analysis"):
+    recorder = R.get_recorder()
+    ba_rid = recorder.id
+
+    sr = SignalRecord(model, dataset, recorder)
+    sr.generate()
+
+    # 第 7.4 节只需要一列标签，提前保留后即可释放完整 Alpha158。
+    label_df = dataset.prepare("test", col_set="label")
+    label_df.columns = ["label"]
+    label_dates = label_df.index.get_level_values("datetime")
+    label_df = label_df.loc[label_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
+
+    pred_df = recorder.load_object("pred.pkl")
+    pred_dates = pred_df.index.get_level_values("datetime")
+    pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
+    backtest_codes = sorted(pred_df.index.get_level_values("instrument").unique())
+    port_analysis_config["backtest"]["exchange_kwargs"]["codes"] = backtest_codes
+
+    print("[2/3] 释放模型与 Alpha158，准备标准组合回测……", flush=True)
+    del sr
+    for variable_name in ["model", "dataset", "handler", "task"]:
+        globals().pop(variable_name, None)
+    gc.collect()
+    show_process_memory("组合回测前")
+
+    print("[3/3] PortAnaRecord 执行 2019 年 TopK 回测……", flush=True)
+    par = PortAnaRecord(recorder, port_analysis_config, "day")
+    par.generate()
+    del par
+    gc.collect()
+    show_process_memory("组合回测完成")
+
+print(f"标准回测完成，Recorder ID: {ba_rid}")
+'@
+
+$standardAnalysisRecorderCell = @'
+from qlib.contrib.report import analysis_model, analysis_position
+
+# 从当前回测实验读取预测、组合报告、持仓和风险分析。
+recorder = R.get_recorder(
+    recorder_id=ba_rid,
+    experiment_name="backtest_analysis",
+)
+print(recorder)
+'@
+
+$standardPredictionOverviewCell = @'
+# ==================== 加载预测结果 ====================
+pred_df = recorder.load_object("pred.pkl")
+pred_dates = pred_df.index.get_level_values("datetime")
+pred_df = pred_df.loc[pred_dates <= pd.Timestamp(LOW_MEMORY_BACKTEST_END)].copy()
+
+pred_info = pd.DataFrame({
+    "属性": [
+        "数据形状", "列名", "索引名称", "日期范围（开始）", "日期范围（结束）", "股票数量"
+    ],
+    "值": [
+        f"{pred_df.shape[0]:,} × {pred_df.shape[1]}",
+        ", ".join(pred_df.columns.tolist()),
+        ", ".join(pred_df.index.names),
+        str(pred_df.index.get_level_values("datetime").min()),
+        str(pred_df.index.get_level_values("datetime").max()),
+        f"{len(pred_df.index.get_level_values('instrument').unique()):,}",
+    ],
+}).set_index("属性")
+
+print("\n【预测数据概览】")
+display(pred_info)
+print("\n【预测数据预览（前5行）】")
+display(pred_df.head(5))
+'@
+
+$standardBacktestDataCell = @'
+# ==================== 加载标准回测数据 ====================
+report_normal_df, positions, analysis_df = load_backtest_data(
+    recorder,
+    analysis_freq="1day",
+)
+data_info = get_backtest_data_info(report_normal_df, positions, analysis_df)
+
+print("\n【回测报告信息】")
+display(data_info["report_info"])
+print("\n【回测报告预览（前5行）】")
+display(report_normal_df.head(5))
+print("\n【回测报告统计摘要】")
+display(report_normal_df.describe().style.format("{:.4f}"))
+'@
+
+$standardLabelCell = @'
+# SignalRecord 生成预测后已保留单列标签；完整 Alpha158 已在回测前释放。
+if "label_df" not in globals():
+    raise RuntimeError("请先顺序运行第 6.2 节的标准回测单元格。")
+
+print(f"标签数据形状: {label_df.shape}")
+'@
+
 $sqliteInit = @'
 mlflow_db = (Path("/content") if IN_COLAB else Path.cwd()) / "qlib_mlflow.db"
 exp_manager = {
@@ -641,7 +759,7 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
     $text = ($cell.source -join '')
 
     if ($cell.cell_type -eq 'markdown' -and $text -match 'SignalRecord\.generate\(\)' -and $text -match 'PortAnaRecord\.generate\(\)') {
-        $text = $lightweightBacktestExplanation
+        $text = $standardBacktestExplanation
     }
 
     if ($cell.cell_type -eq 'code') {
@@ -650,7 +768,7 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         $text = $text.Replace('"num_threads": 20,', '"num_threads": max(1, min(4, os.cpu_count() or 2)),')
         $text = $text.Replace('qlib.init(provider_uri=provider_uri, region=REG_CN)', $sqliteInit)
         if ($text -match 'from qlib\.workflow\.record_temp import SignalRecord, PortAnaRecord') {
-            $text = $text.Replace('from qlib.workflow.record_temp import SignalRecord, PortAnaRecord', "from qlib.workflow.record_temp import SignalRecord, PortAnaRecord`nfrom qlib.backtest import get_exchange`nfrom qlib.backtest.high_performance_ds import PandasQuote")
+            $text = $text.Replace('from qlib.workflow.record_temp import SignalRecord, PortAnaRecord', "from qlib.workflow.record_temp import SignalRecord, PortAnaRecord`nfrom qlib.backtest.high_performance_ds import PandasQuote")
         }
 
         if ($text -match '# 获取实际的 feaure 数据') { $text = $featureSample }
@@ -692,29 +810,24 @@ for ($i = 4; $i -lt $source.cells.Count; $i++) {
         }
 
         if ($text -match 'with R\.start\(experiment_name="backtest_analysis"\)' -and $text -match 'SignalRecord\(') {
-            $text = $backtestWorkflow
+            $text = $standardBacktestWorkflow
         }
 
         if ($text -match 'recorder\s*=\s*R\.get_recorder\(recorder_id=ba_rid') {
-            $text = $analysisRecorderCell
+            $text = $standardAnalysisRecorderCell
         }
 
-        if ($text -match 'pred_df\s*=\s*recorder\.load_object\("pred\.pkl"\)') {
-            $text = $predictionOverviewCell
+        # 回测工作流本身也会读取 pred.pkl；只替换原 Notebook 的独立“查看预测”单元格。
+        if ($text -match 'pred_df\s*=\s*recorder\.load_object\("pred\.pkl"\)' -and $text -notmatch 'SignalRecord\(') {
+            $text = $standardPredictionOverviewCell
         }
 
         if ($text -match 'load_backtest_data\(recorder') {
-            $text = $backtestDataCell
+            $text = $standardBacktestDataCell
         }
 
         if ($text -match '# 准备预测和标签数据') {
-            $text = @'
-# 标签列已在信号生成后保留；完整 Alpha158 数据集已释放，避免再次抬高内存。
-if "label_df" not in globals():
-    raise RuntimeError("请先顺序运行第 6.2 节的低内存回测单元格。")
-
-print(f"标签数据形状: {label_df.shape}")
-'@
+            $text = $standardLabelCell
         }
 
         if ($text -match 'from Utils_backtest import \*') {

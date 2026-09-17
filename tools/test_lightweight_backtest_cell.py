@@ -1,12 +1,10 @@
-"""Execute the generated lightweight backtest cell against small deterministic mocks."""
+"""Execute the generated standard Qlib backtest cell against small mocks."""
 
 from __future__ import annotations
 
 import contextlib
 import gc
 import json
-import sys
-import types
 from pathlib import Path
 
 import numpy as np
@@ -17,38 +15,26 @@ ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK = ROOT / "notebooks" / "Qlib模型训练与回测_Colab教学版.ipynb"
 
 
-class FakePosition:
-    def __init__(self, cash=0.0, position_dict=None):
-        self.cash = cash
-        self.position = dict(position_dict or {})
-
-    def get_stock_list(self):
-        return list(self.position)
-
-    def get_stock_weight(self, code):
-        return self.position[code]["weight"]
-
-
-class FakeDataAPI:
-    @staticmethod
-    def features(instruments, fields, start_time, end_time, **_kwargs):
-        dates = pd.bdate_range(start_time, min(end_time, "2019-01-31"))
-        index = pd.MultiIndex.from_product(
-            [instruments, dates], names=["instrument", "datetime"]
-        )
-        values = np.linspace(-0.02, 0.02, len(index), dtype=float)
-        return pd.DataFrame({fields[0]: values}, index=index)
+def make_predictions() -> pd.DataFrame:
+    dates = pd.bdate_range("2019-01-02", "2020-01-10")
+    codes = [f"SH{600000 + i:06d}" for i in range(80)]
+    index = pd.MultiIndex.from_product(
+        [dates, codes], names=["datetime", "instrument"]
+    )
+    return pd.DataFrame(
+        {"score": np.linspace(-1.0, 1.0, len(index), dtype=float)}, index=index
+    )
 
 
-class FakeModel:
-    @staticmethod
-    def predict(_dataset):
-        dates = pd.bdate_range("2019-01-02", "2019-01-31")
-        codes = [f"SH{600000 + i:06d}" for i in range(80)]
-        index = pd.MultiIndex.from_product(
-            [dates, codes], names=["datetime", "instrument"]
-        )
-        return pd.Series(np.linspace(-1.0, 1.0, len(index)), index=index, name="score")
+class FakeDataset:
+    def __init__(self, predictions: pd.DataFrame):
+        self.predictions = predictions
+
+    def prepare(self, segment, col_set=None):
+        assert segment == "test" and col_set == "label"
+        labels = self.predictions.rename(columns={"score": "LABEL0"}).copy()
+        labels.iloc[:, 0] = np.linspace(-0.02, 0.02, len(labels), dtype=float)
+        return labels
 
 
 class FakeRecorder:
@@ -62,6 +48,9 @@ class FakeRecorder:
             key = f"{artifact_path}/{name}" if artifact_path else name
             self.objects[key] = value
 
+    def load_object(self, name):
+        return self.objects[name]
+
 
 class FakeWorkflow:
     def __init__(self, recorder):
@@ -74,87 +63,89 @@ class FakeWorkflow:
         return self.recorder
 
 
-def fake_risk_analysis(values, freq="1day"):
-    del freq
-    values = pd.Series(values).dropna()
-    std = float(values.std())
-    mean = float(values.mean())
-    cumulative = values.cumsum()
-    drawdown = cumulative - cumulative.cummax()
-    return pd.DataFrame(
-        {
-            "risk": [
-                mean,
-                std,
-                mean * 252,
-                mean / std * np.sqrt(252) if std else np.nan,
-                float(drawdown.min()),
-            ]
-        },
-        index=["mean", "std", "annualized_return", "information_ratio", "max_drawdown"],
-    )
+class FakeSignalRecord:
+    def __init__(self, model, dataset, recorder):
+        self.model = model
+        self.dataset = dataset
+        self.recorder = recorder
+
+    def generate(self):
+        self.recorder.save_objects(**{"pred.pkl": self.model.predict(self.dataset)})
 
 
-def install_fake_qlib_modules():
-    qlib_module = types.ModuleType("qlib")
-    data_module = types.ModuleType("qlib.data")
-    data_module.D = FakeDataAPI
-    backtest_module = types.ModuleType("qlib.backtest")
-    position_module = types.ModuleType("qlib.backtest.position")
-    position_module.Position = FakePosition
-    contrib_module = types.ModuleType("qlib.contrib")
-    evaluate_module = types.ModuleType("qlib.contrib.evaluate")
-    evaluate_module.risk_analysis = fake_risk_analysis
-    sys.modules.update(
-        {
-            "qlib": qlib_module,
-            "qlib.data": data_module,
-            "qlib.backtest": backtest_module,
-            "qlib.backtest.position": position_module,
-            "qlib.contrib": contrib_module,
-            "qlib.contrib.evaluate": evaluate_module,
-        }
-    )
+class FakeModel:
+    def predict(self, dataset):
+        return dataset.predictions.copy()
+
+
+class FakePortAnaRecord:
+    def __init__(self, recorder, config, freq):
+        assert freq == "day"
+        self.recorder = recorder
+        self.config = config
+
+    def generate(self):
+        codes = self.config["backtest"]["exchange_kwargs"]["codes"]
+        assert isinstance(codes, list) and len(codes) == 80
+        dates = pd.bdate_range("2019-01-02", "2019-01-31")
+        report = pd.DataFrame(
+            {
+                "return": np.linspace(-0.01, 0.01, len(dates)),
+                "cost": 0.001,
+                "bench": 0.0,
+                "turnover": 0.1,
+            },
+            index=dates,
+        )
+        analysis = pd.DataFrame({"risk": [0.1]}, index=["annualized_return"])
+        self.recorder.save_objects(
+            artifact_path="portfolio_analysis",
+            **{
+                "report_normal_1day.pkl": report,
+                "positions_normal_1day.pkl": {},
+                "port_analysis_1day.pkl": analysis,
+            },
+        )
 
 
 def main():
-    notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8-sig"))
+    notebook_text = NOTEBOOK.read_text(encoding="utf-8-sig")
+    notebook = json.loads(notebook_text)
     cell_source = next(
         "".join(cell.get("source", []))
         for cell in notebook["cells"]
-        if "免费 Colab 轻量 TopK 回测" in "".join(cell.get("source", []))
-        and cell.get("cell_type") == "code"
+        if cell.get("cell_type") == "code"
+        and "Qlib 标准信号与组合回测" in "".join(cell.get("source", []))
     )
 
-    install_fake_qlib_modules()
     recorder = FakeRecorder()
+    dataset = FakeDataset(make_predictions())
+    port_analysis_config = {
+        "backtest": {"exchange_kwargs": {"codes": "csi300"}}
+    }
     environment = {
         "pd": pd,
-        "np": np,
         "gc": gc,
         "R": FakeWorkflow(recorder),
+        "SignalRecord": FakeSignalRecord,
+        "PortAnaRecord": FakePortAnaRecord,
         "model": FakeModel(),
-        "dataset": object(),
+        "dataset": dataset,
         "handler": object(),
         "task": {},
-        "benchmark": "SH000300",
-        "TEACHING_SEGMENTS": {"test": ("2019-01-01", "2020-08-01")},
+        "port_analysis_config": port_analysis_config,
         "LOW_MEMORY_BACKTEST_END": "2019-12-31",
-        "IN_COLAB": False,
-        "Path": Path,
         "show_process_memory": lambda _stage: None,
     }
     exec(compile(cell_source, str(NOTEBOOK), "exec"), environment)
 
-    report = environment["report_normal_df"]
-    positions = environment["positions"]
-    analysis = environment["analysis_df"]
-    assert list(report.columns) == ["return", "cost", "bench", "turnover"]
-    assert len(report) == len(positions) >= 20
-    assert report.index.is_monotonic_increasing
-    assert report["turnover"].between(0.0, 1.0).all()
-    assert max(len(position.get_stock_list()) for position in positions.values()) == 50
-    assert analysis.index.nlevels == 2
+    assert environment["ba_rid"] == recorder.id
+    assert environment["label_df"].index.get_level_values("datetime").max() <= pd.Timestamp(
+        "2019-12-31"
+    )
+    assert len(port_analysis_config["backtest"]["exchange_kwargs"]["codes"]) == 80
+    for variable_name in ("model", "dataset", "handler", "task"):
+        assert variable_name not in environment
     for artifact in (
         "pred.pkl",
         "portfolio_analysis/report_normal_1day.pkl",
@@ -162,36 +153,16 @@ def main():
         "portfolio_analysis/port_analysis_1day.pkl",
     ):
         assert artifact in recorder.objects
-    checkpoint_path = environment["checkpoint_path"]
-    assert checkpoint_path.exists() and checkpoint_path.stat().st_size > 0
 
-    recovery_notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8-sig"))
-    recovery_loader = next(
-        "".join(cell.get("source", []))
-        for cell in recovery_notebook["cells"]
-        if cell.get("cell_type") == "code" and "checkpoint = pickle.load" in "".join(cell.get("source", []))
-    )
-    recovery_loader = recovery_loader.replace(
-        "RESTORE_ANALYSIS_CHECKPOINT = False",
-        "RESTORE_ANALYSIS_CHECKPOINT = True",
-    )
-    google_module = types.ModuleType("google")
-    colab_module = types.ModuleType("google.colab")
-    colab_module.files = types.SimpleNamespace(
-        upload=lambda: {checkpoint_path.name: checkpoint_path.read_bytes()}
-    )
-    sys.modules.update({"google": google_module, "google.colab": colab_module})
-    recovery_environment = {"pd": pd}
-    exec(compile(recovery_loader, str(NOTEBOOK), "exec"), recovery_environment)
-    assert recovery_environment["report_normal_df"].equals(report)
-    assert len(recovery_environment["positions"]) == len(positions)
-    assert recovery_environment["pred_df"].equals(environment["pred_df"])
+    for forbidden in (
+        "qlib_analysis_checkpoint",
+        "files.download",
+        "RESTORE_ANALYSIS_CHECKPOINT",
+        "R.save_objects(trained_model=model)",
+    ):
+        assert forbidden not in notebook_text
 
-    checkpoint_path.unlink()
-    print(
-        f"lightweight backtest + recovery mock OK | "
-        f"days={len(report)} | positions={len(positions)}"
-    )
+    print("standard Qlib workflow mock OK | no custom checkpoint download")
 
 
 if __name__ == "__main__":

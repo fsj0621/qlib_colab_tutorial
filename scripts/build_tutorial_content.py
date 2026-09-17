@@ -25,6 +25,19 @@ def render_inline(value: str) -> str:
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"(?<!\*)\*([^*]+?)\*(?!\*)", r"<em>\1</em>", text)
 
+    def image(match: re.Match[str]) -> str:
+        alt, url = match.group(1), match.group(2)
+        if not url.startswith(("https://", "http://")):
+            return alt
+        return (
+            f'<img src="{url}" alt="{alt}" loading="lazy" '
+            'referrerpolicy="no-referrer">'
+        )
+
+    # Images must be rendered before ordinary links; otherwise the link
+    # pattern consumes the [alt](url) part and leaves a literal leading "!".
+    text = re.sub(r"!\[([^\]]*)\]\((https?://[^\s)]+)\)", image, text)
+
     def link(match: re.Match[str]) -> str:
         label, url = match.group(1), match.group(2)
         if not url.startswith(("https://", "http://")):

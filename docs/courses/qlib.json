@@ -4,11 +4,11 @@
   "title": "Qlib Tutorial",
   "subtitle": "量化研究工作流",
   "pageTitle": "Qlib 教程 · 讲解模式",
-  "version": "v1.1.0",
+  "version": "v1.1.1",
   "landingPage": "index.html",
   "owner": "fsj0621",
   "repo": "qlib_colab_tutorial",
-  "release": "v1.1.0",
+  "release": "v1.1.1",
   "explorationNotebookPath": "notebooks/Qlib数据与因子探索_Colab教学版.ipynb",
   "explorationDownloadPath": "downloads/Qlib数据与因子探索_Colab教学版.ipynb",
   "trainingNotebookPath": "notebooks/Qlib模型训练与回测_Colab教学版.ipynb",
@@ -235,7 +235,7 @@
       "note": {
         "tone": "warning",
         "title": "低内存回测",
-        "text": "训练回测篇从全新运行时开始，不承接探索篇缓存。回测完成后浏览器会自动下载 qlib_analysis_checkpoint.pkl.gz；若随后断线，可在同一本 Notebook 的 6.3 节恢复。"
+        "text": "训练回测篇从全新运行时开始，不承接探索篇缓存。这里恢复 SignalRecord、PortAnaRecord 和 SimulatorExecutor 的标准流程，但继续使用缩短后的数据区间与 2019 年回测范围。"
       }
     },
     {
@@ -278,7 +278,7 @@
       },
       "note": {
         "title": "结束判断",
-        "text": "如果运行时仍在线可直接继续；如果变量丢失，请在训练回测篇的 6.3 节上传检查点，然后继续第 7 节，无需重新训练或下载行情。"
+        "text": "第 7 节直接读取当前 Qlib 回测实验中的预测、组合报告、持仓与风险指标；教程不再额外生成或下载检查点文件。"
       }
     }
   ]

@@ -40,7 +40,7 @@ python -m http.server 8000 --directory qlib_colab_tutorial
 python scripts/build_tutorial_content.py `
   --input "notebooks/Qlib量化投资工作流教程_Colab学生版.ipynb" `
   --output "docs/courses/qlib-notebook.json" `
-  --revision "v1.1.0"
+  --revision "v1.1.1"
 ```
 
 课程配置中的 `notebookContent` 指向生成结果。更新已发布 Notebook 后重新运行此命令，网页讲解内容就会同步更新。
@@ -59,7 +59,7 @@ python scripts/build_tutorial_content.py `
 
 Notebook 固定使用 Colab `2026.07` 运行时（Python 3.12.13），因为 `pyqlib==0.9.7` 暂无 Python 3.13 安装包。若已经连接到 Python 3.13，请在 **代码执行程序 → 更改运行时类型 → 运行时版本** 中选择 `2026.07`，然后重新运行。
 
-`v1.1.0` 将课堂实践拆成两个独立运行时。第一部分只讲数据、表达式特征与一个月的 Alpha158 小样本，不创建正式训练集；完成后主动删除运行时。第二部分从干净环境独立创建唯一一套正式 Alpha158，完成 LightGBM、2019 年轻量 TopK 回测和绩效分析。回测后仍会自动下载 `qlib_analysis_checkpoint.pkl.gz`，断线恢复入口已合并到第二本 Notebook 的 6.3 节。
+`v1.1.1` 将课堂实践拆成两个独立运行时。第一部分只讲数据、表达式特征与一个月的 Alpha158 小样本，不创建正式训练集；完成后主动删除运行时。第二部分从干净环境独立创建唯一一套正式 Alpha158，并恢复 Qlib 的 `SignalRecord`、`PortAnaRecord` 与 `SimulatorExecutor` 标准流程。训练、验证、测试区间继续使用 2017、2018、2019–2020 的课堂轻量范围，组合回测只覆盖 2019 年；不再生成或下载额外检查点文件。
 
 Qlib 当前 README 说明官方数据下载暂时停用，因此 Notebook 使用其推荐的社区数据镜像：
 
@@ -83,7 +83,7 @@ python scripts/build_split_notebooks.py `
   --training-output "notebooks\Qlib模型训练与回测_Colab教学版.ipynb"
 ```
 
-主生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；拆分生成器会创建相互独立的探索篇和训练回测篇，并把断线恢复合并到后者。发布前将两本 Notebook 同步到 `docs/downloads/`。
+主生成脚本会清除所有输出、加入 Colab 环境单元格、内嵌辅助函数、替换数据路径，并修复作业占位代码的语法错误；拆分生成器会创建相互独立的探索篇和训练回测篇。后者连续完成训练、标准回测和分析，不再生成额外的断线恢复文件。发布前将两本 Notebook 同步到 `docs/downloads/`。
 
 ## 版权
 
